@@ -15,6 +15,7 @@ export default defineConfig({
   server: {
     open: true,
     port: 5000,
+    allowedHosts: ["vuthuyhien.id.vn", "www.vuthuyhien.id.vn"],
     proxy: {
       "/api": {
         target: "http://localhost:4000",
