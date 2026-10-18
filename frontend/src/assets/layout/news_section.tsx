@@ -1,6 +1,7 @@
 // Đây là trang tin tức :)))), có 43 cái ảnh thôi mà
 
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import BanhCom from "@/assets/images/images-news/banhcom.jpg";
 import BanhChung from "@/assets/images/images-news/banhchung.jpg";
 import ComLangVong from "@/assets/images/images-news/comlangvong.jpg";
@@ -41,13 +42,19 @@ import AmThucTayBac from "@/assets/images/images-news/amthuctaybac.jpg";
 import ChoDongBa from "@/assets/images/images-news/chodongba.jpg";
 import AmThucMienTay from "@/assets/images/images-news/muanuocnoi.jpg";
 import CaPheViaHe from "@/assets/images/images-news/capheviahe.jpg";
+import BaMien from "@/assets/images/images-home/bamien.jpg";
 
 export default function NewsPage() {
-  const [activeCategory, setActiveCategory] = useState("Tin tức");
+  const categories = ["Tin tức", "Bài viết"];
+
+  const [searchParams] = useSearchParams();
+  const categoryParam = searchParams.get("category");
+
+  const [activeCategory, setActiveCategory] = useState(
+    categories.includes(categoryParam || "") ? categoryParam! : "Tin tức"
+  );
   const [activeRegion, setActiveRegion] = useState("Tất cả");
   const [currentPage, setCurrentPage] = useState(1);
-
-  const categories = ["Tin tức", "Bài viết"];
   const regions = ["Tất cả", "Miền Bắc", "Miền Trung", "Miền Nam"];
 
   // Dữ liệu tĩnh
@@ -455,7 +462,17 @@ export default function NewsPage() {
   );
 
   return (
-    <div className="container mx-auto p-6 flex flex-col md:flex-row gap-6 mt-20">
+    <div className="container mx-auto p-6 flex flex-col md:flex-row gap-6 mt-20 relative isolate">
+      {/* Ảnh nền quảng bá vùng miền, làm mờ để không che nội dung */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <img
+          src={BaMien}
+          alt="Ẩm thực vùng miền"
+          className="w-full h-full object-cover scale-110 blur-md"
+        />
+        <div className="absolute inset-0 bg-white/80" />
+      </div>
+
       {/* Cột trái - Danh mục */}
       <div className="w-full md:w-1/4">
         <h2 className="text-xl font-bold mb-4">Danh mục</h2>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { FaChevronDown, FaShoppingCart } from "react-icons/fa";
 import { Button } from "@/components/button";
@@ -8,6 +8,7 @@ import { getProfile } from "@/api/get-profile";
 import { addProductToCart } from "@/api/order-detail"; // ← THÊM API THẬT
 import type { SanPham, Product } from "@/types/product.type";
 import { showSuccess, showError } from "@/common/toast";
+import BaMien from "@/assets/images/images-home/bamien.jpg";
 
 const Products = () => {
   const [selectedRegion, setSelectedRegion] = useState("Tất cả");
@@ -24,6 +25,21 @@ const Products = () => {
   const [isSticky, setIsSticky] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(30);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchKeyword, setSearchKeyword] = useState(
+    searchParams.get("search") ?? ""
+  );
+  const [sortBy, setSortBy] = useState<
+    "featured" | "price-asc" | "price-desc" | "name-asc" | "best-seller"
+  >("featured");
+  const [priceFilter, setPriceFilter] = useState<
+    "all" | "under-100" | "100-200" | "200-500" | "over-500"
+  >("all");
+  const [ratingFilter, setRatingFilter] = useState<
+    "all" | "4.5" | "4.0" | "3.5"
+  >("all");
+  const [showInStockOnly, setShowInStockOnly] = useState(false);
+  const [bestSellerOnly, setBestSellerOnly] = useState(false);
   const navigate = useNavigate();
 
   const regions = [
@@ -147,14 +163,88 @@ const Products = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    const nextSearch = searchParams.get("search") ?? "";
+    setSearchKeyword(nextSearch);
+  }, [searchParams]);
+
+  const handleSearchChange = (value: string) => {
+    const trimmed = value.trim();
+    setSearchKeyword(value);
+
+    const nextParams = new URLSearchParams(searchParams);
+    if (trimmed) {
+      nextParams.set("search", trimmed);
+    } else {
+      nextParams.delete("search");
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const filteredProducts = products.filter((product) => {
+    const normalizedQuery = searchKeyword.trim().toLowerCase();
+    const matchesSearch =
+      !normalizedQuery ||
+      product.name.toLowerCase().includes(normalizedQuery) ||
+      product.region.toLowerCase().includes(normalizedQuery) ||
+      product.type.toLowerCase().includes(normalizedQuery);
+
+    const matchesPrice =
+      priceFilter === "all" ||
+      (priceFilter === "under-100" && product.price < 100000) ||
+      (priceFilter === "100-200" &&
+        product.price >= 100000 &&
+        product.price <= 200000) ||
+      (priceFilter === "200-500" &&
+        product.price > 200000 &&
+        product.price <= 500000) ||
+      (priceFilter === "over-500" && product.price > 500000);
+
+    const productRating = 4.5 + ((product.daBan ?? 0) % 5) * 0.1;
+    const matchesRating =
+      ratingFilter === "all" ||
+      (ratingFilter === "4.5" && productRating >= 4.5) ||
+      (ratingFilter === "4.0" && productRating >= 4.0 && productRating < 4.5) ||
+      (ratingFilter === "3.5" && productRating >= 3.5 && productRating < 4.0);
+
+    const matchesStock = !showInStockOnly || (product.soLuongTon ?? 0) > 0;
+    const matchesBestSeller = !bestSellerOnly || (product.daBan ?? 0) > 0;
+
+    return (
+      matchesSearch &&
+      matchesPrice &&
+      matchesRating &&
+      matchesStock &&
+      matchesBestSeller
+    );
+  });
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sortBy) {
+      case "price-asc":
+        return a.price - b.price;
+      case "price-desc":
+        return b.price - a.price;
+      case "name-asc":
+        return a.name.localeCompare(b.name);
+      case "best-seller":
+        return (b.daBan ?? 0) - (a.daBan ?? 0);
+      default:
+        return 0;
+    }
+  });
+
   // Phân trang
-  const totalItems = products.length;
+  const totalItems = sortedProducts.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentProducts = products.slice(startIndex, endIndex);
+  const currentProducts = sortedProducts.slice(startIndex, endIndex);
 
-  useEffect(() => setCurrentPage(1), [selectedRegion, subCategory]);
+  useEffect(
+    () => setCurrentPage(1),
+    [selectedRegion, subCategory, searchKeyword, sortBy, priceFilter, ratingFilter, showInStockOnly, bestSellerOnly]
+  );
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -206,7 +296,17 @@ const Products = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 relative" ref={dropdownRef}>
+    <div className="min-h-screen pt-20 relative isolate" ref={dropdownRef}>
+      {/* Ảnh nền quảng bá vùng miền, làm mờ để không che nội dung */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <img
+          src={BaMien}
+          alt="Ẩm thực vùng miền"
+          className="w-full h-full object-cover scale-110 blur-md"
+        />
+        <div className="absolute inset-0 bg-white/80" />
+      </div>
+
       {loading && (
         <p className="text-center text-gray-500 mt-8">
           Đang tải sản phẩm... (⁠*⁠´⁠ω⁠｀⁠*⁠) :33333
@@ -245,7 +345,7 @@ const Products = () => {
               }
               className={`flex justify-between items-center w-full text-left px-4 py-2 rounded-md transition ${
                 selectedRegion === r.name
-                  ? "bg-slate--700 text-white"
+                  ? "bg-slate-700 text-white"
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
@@ -357,13 +457,134 @@ const Products = () => {
 
       {/* MAIN CONTENT */}
       <div className="flex-1 px-2 md:px-4 py-6 md:ml-[25%] mt-8 md:-mt-2">
-        <h2 className="text-2xl font-semibold mb-6">
-          {selectedRegion === "Tất cả"
-            ? "Tất cả sản phẩm"
-            : subCategory
-            ? `Đặc sản miền ${selectedRegion} - ${subCategory}`
-            : `Đặc sản miền ${selectedRegion}`}
-        </h2>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold">
+              {selectedRegion === "Tất cả"
+                ? "Tất cả sản phẩm"
+                : subCategory
+                ? `Đặc sản miền ${selectedRegion} - ${subCategory}`
+                : `Đặc sản miền ${selectedRegion}`}
+            </h2>
+            {(searchKeyword || priceFilter !== "all" || showInStockOnly || bestSellerOnly) && (
+              <p className="text-sm text-gray-500 mt-1">
+                {searchKeyword
+                  ? `Kết quả tìm kiếm cho: "${searchKeyword}"`
+                  : "Đang lọc sản phẩm theo tùy chọn"}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="relative w-full sm:w-72">
+              <input
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Tìm kiếm sản phẩm..."
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-10 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                🔎
+              </span>
+            </div>
+
+            <select
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(
+                  e.target.value as
+                    | "featured"
+                    | "price-asc"
+                    | "price-desc"
+                    | "name-asc"
+                    | "best-seller"
+                )
+              }
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="featured">Sắp xếp: mặc định</option>
+              <option value="price-asc">Giá thấp đến cao</option>
+              <option value="price-desc">Giá cao đến thấp</option>
+              <option value="name-asc">Tên A - Z</option>
+              <option value="best-seller">Bán chạy nhất</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "all", label: "Tất cả giá" },
+                { value: "under-100", label: "Dưới 100k" },
+                { value: "100-200", label: "100k - 200k" },
+                { value: "200-500", label: "200k - 500k" },
+                { value: "over-500", label: "Trên 500k" },
+              ].map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => setPriceFilter(item.value as typeof priceFilter)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                    priceFilter === item.value
+                      ? "border-slate-700 bg-slate-700 text-white"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={ratingFilter}
+                onChange={(e) =>
+                  setRatingFilter(e.target.value as typeof ratingFilter)
+                }
+                className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 outline-none focus:border-green-500"
+              >
+                <option value="all">Theo đánh giá: tất cả</option>
+                <option value="4.5">⭐ 4.5+</option>
+                <option value="4.0">⭐ 4.0 - 4.5</option>
+                <option value="3.5">⭐ 3.5 - 4.0</option>
+              </select>
+
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={showInStockOnly}
+                  onChange={() => setShowInStockOnly(!showInStockOnly)}
+                  className="h-4 w-4 accent-slate-700"
+                />
+                Chỉ còn hàng
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={bestSellerOnly}
+                  onChange={() => setBestSellerOnly(!bestSellerOnly)}
+                  className="h-4 w-4 accent-slate-700"
+                />
+                Bán chạy
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPriceFilter("all");
+                  setRatingFilter("all");
+                  setShowInStockOnly(false);
+                  setBestSellerOnly(false);
+                }}
+                className="rounded-full border border-gray-300 bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-6">
           {currentProducts.map((product) => (
