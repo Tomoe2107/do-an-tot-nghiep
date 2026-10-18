@@ -15,6 +15,10 @@ lerna-debug.log*
 # Environment variables
 .env
 
+# Uploaded user content at runtime (avatars, product images)
+public/avatars/
+upload/
+
 # Editor directories and files
 .vscode/
 .idea/

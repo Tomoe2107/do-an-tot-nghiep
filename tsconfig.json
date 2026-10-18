@@ -24,18 +24,7 @@
 
     /* ===== Performance & Clean ===== */
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-
-    /* ===== Alias Config ===== */
-    "baseUrl": "./src",
-    "paths": {
-      "@config/*": ["config/*"],
-      "@controllers/*": ["controllers/*"],
-      "@models/*": ["models/*"],
-      "@routes/*": ["routes/*"],
-      "@services/*": ["services/*"],
-      "@utils/*": ["utils/*"]
-    }
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src"],
   "exclude": ["node_modules"]

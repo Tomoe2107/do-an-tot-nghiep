@@ -16,6 +16,7 @@ import { uploadAvatarRouter } from "./routes/upload.avatar.router";
 import paypalRoutes from "./routes/paypal.router";
 import statisticRouter from "./routes/statistic.router";
 import emailRoutes from "./routes/email.router";
+import chatbotRoutes from "./routes/chatbot.router";
 
 import path from "path";
 import fs from "fs"; // Thêm fs để kiểm tra/thêm thư mục
@@ -39,6 +40,8 @@ app.use(
         "http://localhost:5001",
         "https://regional-specialties-fe.up.railway.app",
         "https://regional-specialties.vercel.app",
+        "https://vuthuyhien.id.vn",
+        "https://www.vuthuyhien.id.vn",
       ];
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -101,6 +104,15 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/order-detail", orderDetailRoutes);
 
 app.use("/api", emailRoutes);
+
+app.use(
+  "/api/chatbot",
+  (req, res, next) => {
+    console.log("🔥 Vào được /api/chatbot:", req.method, req.originalUrl);
+    next();
+  },
+  chatbotRoutes
+);
 
 app.use(
   "/api/paypal",

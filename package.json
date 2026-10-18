@@ -20,6 +20,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@google-cloud/dialogflow": "^8.3.0",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
@@ -31,11 +32,13 @@
     "mysql2": "^3.15.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.6",
+    "pb-util": "^1.0.3",
     "validator": "^13.15.15"
   },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "update-webhook": "ts-node --transpile-only src/scripts/update-dialogflow-webhook.ts"
   }
 }
