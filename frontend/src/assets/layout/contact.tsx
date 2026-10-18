@@ -175,7 +175,7 @@ export default function ContactSection() {
 
             <div className="flex items-center gap-4">
               <MdShare className="w-5 h-5 text-yellow-500" />
-              <span>Fanpage: MTN Shop - Đặc sản ba miền</span>
+              <span>Fanpage: Shop của Vũ Thuý Hiền - Đặc sản ba miền</span>
             </div>
           </motion.div>
 

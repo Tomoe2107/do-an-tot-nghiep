@@ -89,7 +89,7 @@ export const orderSuccessEmail = (
     </div>
 
     <div class="footer">
-      <p>MTN Shop - Đặc sản ba miền • Hotline: 0374694714</p>
+      <p>Shop của Vũ Thuý Hiền - Đặc sản ba miền • Hotline: 0374694714</p>
       <p style="margin:10px 0 0; color:#999;">Email được gửi tự động • Vui lòng không trả lời email này</p>
     </div>
   </div>

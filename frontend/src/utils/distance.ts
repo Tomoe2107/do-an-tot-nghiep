@@ -3,7 +3,7 @@
 export const SHOP_LOCATION = {
   latitude: 21.1086,
   longitude: 105.446862,
-  name: "MTN Shop - Đặc sản ba miền",
+  name: "Shop của Vũ Thuý Hiền - Đặc sản ba miền",
 };
 
 export const calculateDistance = (
