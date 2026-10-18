@@ -8,6 +8,7 @@ import {
   FaBars,
   FaRegStar,
   FaBoxes,
+  FaShoppingBag,
 } from "react-icons/fa";
 import { useState } from "react";
 
@@ -103,6 +104,16 @@ export default function AdminLayout() {
         </nav>
 
         <div className="border-t border-green-500">
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              navigate("/");
+            }}
+            className="flex items-center gap-3 px-6 py-3 w-full text-left hover:bg-green-600 transition"
+          >
+            <FaShoppingBag /> Về trang chủ mua sắm
+          </button>
+
           <button
             onClick={() => {
               setIsOpen(false);

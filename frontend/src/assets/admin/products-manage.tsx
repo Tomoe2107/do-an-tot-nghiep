@@ -5,6 +5,7 @@ import {
   FaEdit,
   FaTrash,
   FaTimes,
+  FaSearch,
 } from "react-icons/fa";
 import {
   getAllSanPham,
@@ -61,6 +62,7 @@ const ManageProducts = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SanPham | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Lấy danh sách sản phẩm
   useEffect(() => {
@@ -357,6 +359,19 @@ const ManageProducts = () => {
     setEditingProduct(null);
   };
 
+  // Lọc sản phẩm theo từ khóa tìm kiếm
+  const filteredProducts = products.filter((product) => {
+    const keyword = searchTerm.trim().toLowerCase();
+    if (!keyword) return true;
+    return (
+      product.TenSP?.toLowerCase().includes(keyword) ||
+      String(product.MaSP ?? "").includes(keyword) ||
+      product.XuatXu?.toLowerCase().includes(keyword) ||
+      product.VungMien?.toLowerCase().includes(keyword) ||
+      product.LoaiDoAn?.toLowerCase().includes(keyword)
+    );
+  });
+
   // Tính giá sau giảm
   const giaSauGiam =
     formData.giaBan && formData.voucher
@@ -620,12 +635,28 @@ const ManageProducts = () => {
 
       {/* Danh sách sản phẩm */}
       <div className="bg-white rounded-none sm:rounded-2xl shadow py-6 -mx-6 sm:mx-0">
-        <h2 className="text-2xl font-semibold mb-4 text-gray-700 px-4 sm:px-6">
-          Danh sách sản phẩm
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 px-4 sm:px-6 mb-4">
+          <h2 className="text-2xl font-semibold text-gray-700">
+            Danh sách sản phẩm
+          </h2>
+          <div className="relative w-full sm:w-72">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm theo tên, mã SP, xuất xứ..."
+              className="w-full border rounded-lg pl-9 pr-3 py-2 focus:ring focus:ring-green-200"
+            />
+          </div>
+        </div>
 
-        {products.length === 0 && !loading ? (
-          <p className="text-gray-500 px-4 sm:px-6">Không có sản phẩm nào!</p>
+        {filteredProducts.length === 0 && !loading ? (
+          <p className="text-gray-500 px-4 sm:px-6">
+            {products.length === 0
+              ? "Không có sản phẩm nào!"
+              : "Không tìm thấy sản phẩm phù hợp!"}
+          </p>
         ) : (
           <div className="overflow-x-auto px-0 sm:px-6">
             <table className="min-w-full table-auto">
@@ -641,7 +672,7 @@ const ManageProducts = () => {
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <tr key={product.MaSP} className="border-b">
                     <td className="px-4 py-2">{product.MaSP}</td>
                     <td className="px-4 py-2">{product.TenSP}</td>

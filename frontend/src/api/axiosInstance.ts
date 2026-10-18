@@ -25,7 +25,10 @@ api.interceptors.response.use(
   async (error) => {
     const status = error.response?.status;
     const data = error.response?.data || {};
-    const msg = (data.error || data.message || "").toLowerCase();
+    const rawMsg = data.error || data.message || "";
+    const msg = (
+      typeof rawMsg === "string" ? rawMsg : JSON.stringify(rawMsg)
+    ).toLowerCase();
 
     console.log("🔥 Token interceptor:", status, msg);
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/button";
 import { getAllOrders, updateOrderStatus, deleteOrder } from "@/api/order";
 import { showSuccess, showError } from "@/common/toast";
-import { FaCheckCircle, FaSpinner, FaTrashAlt } from "react-icons/fa";
+import { FaCheckCircle, FaSearch, FaSpinner, FaTrashAlt } from "react-icons/fa";
 
 // Import Dialog Radix
 import {
@@ -36,6 +36,7 @@ const OrderManage: React.FC = () => {
   // DIALOG XÁC NHẬN XÓA
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // LẤY DANH SÁCH ĐƠN HÀNG
   const fetchOrders = async () => {
@@ -93,6 +94,19 @@ const OrderManage: React.FC = () => {
     }
   };
 
+  // Lọc đơn hàng theo từ khóa tìm kiếm
+  const filteredOrders = orders.filter((order) => {
+    const keyword = searchTerm.trim().toLowerCase();
+    if (!keyword) return true;
+    return (
+      order.MaDonHang?.toLowerCase().includes(keyword) ||
+      order.HoTen?.toLowerCase().includes(keyword) ||
+      order.SoDienThoai?.toLowerCase().includes(keyword) ||
+      order.DiaChiGiaoHang?.toLowerCase().includes(keyword) ||
+      order.TrangThai?.toLowerCase().includes(keyword)
+    );
+  });
+
   const formatCurrency = (value: string | number) => {
     const num = Number(value) || 0;
     return num.toLocaleString("vi-VN", {
@@ -103,10 +117,20 @@ const OrderManage: React.FC = () => {
 
   return (
     <div className="px-0 sm:px-6 py-6 max-w-screen-xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-6">
         <h1 className="text-3xl sm:text-4xl font-extrabold text-green-700 text-center sm:text-left w-full mb-3 sm:mb-0">
           Quản lý đơn hàng
         </h1>
+        <div className="relative w-full sm:w-72 shrink-0">
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm theo mã đơn, khách hàng, SĐT..."
+            className="w-full border rounded-lg pl-9 pr-3 py-2 focus:ring focus:ring-green-200"
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
@@ -132,8 +156,8 @@ const OrderManage: React.FC = () => {
                   <p className="mt-2 text-gray-600">Đang tải đơn hàng...</p>
                 </td>
               </tr>
-            ) : orders.length > 0 ? (
-              orders.map((order) => (
+            ) : filteredOrders.length > 0 ? (
+              filteredOrders.map((order) => (
                 <tr key={order.MaDonHang} className="hover:bg-gray-50 border-b">
                   <td className="px-4 py-2 font-semibold text-gray-800">
                     #{order.MaDonHang}
@@ -215,7 +239,9 @@ const OrderManage: React.FC = () => {
                   colSpan={9}
                   className="text-center py-12 text-gray-500 italic"
                 >
-                  Chưa có đơn hàng nào
+                  {orders.length === 0
+                    ? "Chưa có đơn hàng nào"
+                    : "Không tìm thấy đơn hàng phù hợp"}
                 </td>
               </tr>
             )}
@@ -224,7 +250,8 @@ const OrderManage: React.FC = () => {
       </div>
 
       <div className="mt-6 text-center text-sm text-gray-500">
-        Tổng cộng: <strong>{orders.length}</strong> đơn hàng
+        Hiển thị: <strong>{filteredOrders.length}</strong> / {orders.length}{" "}
+        đơn hàng
       </div>
 
       {/* DIALOG XÁC NHẬN XÓA */}
