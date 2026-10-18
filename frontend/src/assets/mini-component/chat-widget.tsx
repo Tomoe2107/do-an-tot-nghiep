@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaComments, FaTimes, FaPaperPlane } from "react-icons/fa";
 import ChatSuggestions from "./QA-suggest";
+import { sendMessageToBot } from "@/api/chatbot";
 
 type Message = {
   id: string;
@@ -32,6 +33,19 @@ export default function ChatWidget({
   const FB_PAGE_ID = "61581439421009";
   const FB_MESSENGER_URL = `https://m.me/${FB_PAGE_ID}`;
 
+  // sessionId giữ xuyên suốt trình duyệt để Dialogflow nhớ ngữ cảnh hội thoại
+  const sessionIdRef = useRef<string>("");
+  if (!sessionIdRef.current) {
+    const saved = localStorage.getItem("chatbot_session_id");
+    sessionIdRef.current =
+      saved ||
+      (() => {
+        const id = `guest_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+        localStorage.setItem("chatbot_session_id", id);
+        return id;
+      })();
+  }
+
   // Auto-scroll khi có tin nhắn mới
   useEffect(() => {
     if (open && listRef.current) {
@@ -46,24 +60,6 @@ export default function ChatWidget({
       }
     }
   }, [messages, open]);
-
-  // Giả lập shop trả lời với các câu gợi ý
-  const simulateShopReply = (userText: string) => {
-    setIsTyping(true);
-    setTimeout(() => {
-      const reply: Message = {
-        id: `s_${Date.now()}`,
-        from: "shop",
-        text: `Cảm ơn bạn! Chúng tôi đã nhận được: "${truncate(
-          userText,
-          80
-        )}". Sẽ phản hồi nhanh nhất có thể.`,
-        time: timeNow(),
-      };
-      setMessages((m) => [...m, reply]);
-      setIsTyping(false);
-    }, 900 + Math.random() * 1200);
-  };
 
   // User chọn câu hỏi gợi ý
   const handleSampleQuestion = (item: { q: string; a: string }) => {
@@ -86,44 +82,54 @@ export default function ChatWidget({
     }, 700);
   };
 
-  // Gửi tin nhắn
-  const handleSend = () => {
+  // Gửi tin nhắn tới chatbot Dialogflow
+  const handleSend = async () => {
     if (!input.trim()) return;
+    const userText = input.trim();
     const msg: Message = {
       id: `u_${Date.now()}`,
       from: "user",
-      text: input.trim(),
+      text: userText,
       time: timeNow(),
     };
     setMessages((m) => [...m, msg]);
     setInput("");
     setUnread(0);
+    setIsTyping(true);
 
-    // Danh sách câu hỏi gợi ý
-    const knownQuestions = [
-      "Ship như thế nào?",
-      "Giá bao nhiêu?",
-      "Có khuyến mãi không?",
-    ];
+    try {
+      const data = await sendMessageToBot(userText, sessionIdRef.current);
+      sessionIdRef.current = data.sessionId || sessionIdRef.current;
+      localStorage.setItem("chatbot_session_id", sessionIdRef.current);
 
-    const isKnown = knownQuestions.some((q) =>
-      msg.text.toLowerCase().includes(q.toLowerCase())
-    );
-
-    if (!isKnown) {
       const reply: Message = {
         id: `s_${Date.now()}`,
         from: "shop",
-        text: "Bạn có thể inbox trực tiếp với admin qua mesengger nhé!",
+        text: data.reply,
         time: timeNow(),
       };
       setMessages((m) => [...m, reply]);
 
+      // Bot không hiểu ý khách -> gợi ý nhắn trực tiếp qua Messenger
+      if (data.isFallback) {
+        setTimeout(() => {
+          window.open(FB_MESSENGER_URL, "_blank");
+        }, 1200);
+      }
+    } catch (error) {
+      console.error("Lỗi gửi tin nhắn tới chatbot:", error);
+      const reply: Message = {
+        id: `s_${Date.now()}`,
+        from: "shop",
+        text: "Xin lỗi, chatbot đang gặp sự cố. Bạn có thể inbox trực tiếp với admin qua Messenger nhé!",
+        time: timeNow(),
+      };
+      setMessages((m) => [...m, reply]);
       setTimeout(() => {
         window.open(FB_MESSENGER_URL, "_blank");
       }, 1200);
-    } else {
-      simulateShopReply(msg.text);
+    } finally {
+      setIsTyping(false);
     }
   };
 
@@ -136,8 +142,6 @@ export default function ChatWidget({
   };
 
   // helper
-  const truncate = (str: string, n: number) =>
-    str.length > n ? str.slice(0, n - 1) + "…" : str;
   const timeNow = () =>
     new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
