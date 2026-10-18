@@ -10,6 +10,7 @@ import { FaShoppingCart } from "react-icons/fa";
 import Header from "../default/header";
 import Footer from "../default/footer";
 import avt from "@/assets/images/default.jpg";
+import BaMien from "@/assets/images/images-home/bamien.jpg";
 import type { ProductReview } from "@/api/product-review"; // dùng `import type`
 import {
   getReviewsByProduct,
@@ -210,7 +211,17 @@ export default function ProductDetail() {
     );
 
   return (
-    <div>
+    <div className="relative isolate">
+      {/* Ảnh nền quảng bá vùng miền, làm mờ để không che nội dung */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <img
+          src={BaMien}
+          alt="Ẩm thực vùng miền"
+          className="w-full h-full object-cover scale-110 blur-md"
+        />
+        <div className="absolute inset-0 bg-white/80" />
+      </div>
+
       <div className="mb-18">
         <Header />
       </div>
