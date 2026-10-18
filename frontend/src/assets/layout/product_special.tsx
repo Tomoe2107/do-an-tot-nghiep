@@ -35,7 +35,7 @@ export default function Product_special() {
           };
         });
 
-        const featured = formatted.slice(0, 8);
+        const featured = formatted.slice(0, 12);
         setProducts(featured);
       } catch (error) {
         console.error("Lỗi khi lấy sản phẩm nổi bật:", error);
@@ -136,14 +136,14 @@ export default function Product_special() {
       </motion.div>
 
       {/* Grid sản phẩm */}
-      <div className="grid grid-cols-2 gap-4 px-3 md:flex md:justify-center md:gap-8 md:flex-wrap">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 px-3">
         {products.map((product, index) => (
           <motion.div
             key={product.id}
             initial={{ opacity: 0, x: -100 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5, delay: index * 0.1 }}
-            className="w-full md:w-60 border rounded-xl shadow hover:shadow-lg hover:-translate-y-3 transition bg-white group"
+            className="w-full border rounded-xl shadow hover:shadow-lg hover:-translate-y-3 transition bg-white group"
           >
             {/* Ảnh và nút */}
             <div className="relative overflow-hidden rounded-t-md">

@@ -70,7 +70,7 @@ export default function BlogSection() {
 
       {/* Nút Xem thêm bên phải */}
       <div className="max-w-6xl mx-auto flex justify-end mb-4 -mt-6">
-        <Link to="/news">
+        <Link to="/news?category=Bài viết">
           <Button variant="default">Xem thêm</Button>
         </Link>
       </div>
@@ -94,7 +94,7 @@ export default function BlogSection() {
               <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
               <p className="text-gray-600 text-sm">{post.description}</p>
               <div className="flex justify-end">
-                <Link to="/news">
+                <Link to="/news?category=Bài viết">
                   <FaArrowRight />
                 </Link>
               </div>
