@@ -44,9 +44,7 @@ const footerColumns = [
     title: "Đội ngũ của chúng tôi",
     content: [
       <ul className="space-y-2 leading-7">
-        <li className="opacity-80">Vũ Tú Nam</li>
-        <li className="opacity-80">Đỗ Thị Mai</li>
-        <li className="opacity-80">Nguyễn Hồng Thịnh</li>
+        <li className="opacity-80">Vũ Thuý Hiền</li>
       </ul>,
     ],
   },
@@ -61,8 +59,8 @@ const footerColumns = [
       </>,
       <>
         Hotline:{" "}
-        <a href="tel:0345281795" className="hover:underline">
-          0345 281 795
+        <a href="tel:0374694714" className="hover:underline">
+          0374 694 714
         </a>
       </>,
       <div className="flex gap-4 text-2xl text-yellow-500 mt-2">

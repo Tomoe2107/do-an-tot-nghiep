@@ -13,7 +13,7 @@ import { useInView } from "react-intersection-observer";
 
 export default function OrderProcess() {
   const steps = [
-    { icon: <FaPhoneAlt size={36} />, bold: "Gọi 0345281795" },
+    { icon: <FaPhoneAlt size={36} />, bold: "Gọi 0374694714" },
     { icon: <FaShoppingBasket size={36} />, label: "Tạo đơn hàng" },
     { icon: <FaMotorcycle size={36} />, label: "Giao hàng" },
     { icon: <FaCreditCard size={36} />, label: "Thanh toán" },
