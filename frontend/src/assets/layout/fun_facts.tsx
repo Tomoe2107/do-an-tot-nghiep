@@ -46,7 +46,7 @@ export default function FunFacts() {
           className="flex justify-center text-yellow-500 text-2xl mt-2"
           style={{ fontFamily: "'Ga Maamli', sans-serif" }}
         >
-          MTN Fun Facts
+          Ba Miền Fun Facts
         </motion.span>
 
         <motion.div

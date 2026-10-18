@@ -34,7 +34,7 @@ export default function Gallery() {
           className="flex justify-center text-yellow-500 text-2xl mt-2"
           style={{ fontFamily: "'Ga Maamli', sans-serif" }}
         >
-          MTN Photos
+          Ba Miền Photos
         </motion.span>
 
         <motion.h2

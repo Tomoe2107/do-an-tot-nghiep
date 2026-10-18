@@ -94,7 +94,7 @@ export default function CustomerReviews() {
             className="flex justify-center text-yellow-500 text-2xl mt-2"
             style={{ fontFamily: "'Ga Maamli', sans-serif" }}
           >
-            MTN Review
+            Ba Miền Review
           </motion.span>
 
           <motion.div
