@@ -454,7 +454,7 @@ export default function ProductDetail() {
             <div>
               <h2 className="text-xl font-semibold mb-3">Mô tả sản phẩm</h2>
               <div
-                className="text-gray-700 leading-relaxed text-justify prose prose-sm max-w-none [&_*]:!text-base [&_*]:!leading-relaxed [&_*]:!font-normal [&_strong]:!font-semibold [&_b]:!font-semibold"
+                className="text-gray-700 leading-relaxed text-justify prose prose-sm max-w-none [&_*:not(a)]:!text-gray-900 [&_a]:!text-blue-600 [&_a]:!underline [&_a]:!font-medium"
                 dangerouslySetInnerHTML={{
                   __html: product.MoTa || "Chưa có mô tả cho sản phẩm này.",
                 }}
