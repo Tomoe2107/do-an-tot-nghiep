@@ -155,12 +155,12 @@ export default function ContactSection() {
 
             <div className="flex items-center gap-4">
               <MdPhone className="text-yellow-500" />
-              <span>0345 281 795</span>
+              <span>0374 694 714</span>
             </div>
 
             <div className="flex items-center gap-4">
               <MdLocationOn className="text-yellow-500" />
-              <span>Ngõ 389 Xuân Khanh, Phường Tùng Thiện, TP. Hà Nội</span>
+              <span>Số 5, Ngõ 1, Xóm Bún, Thôn Quan Âm, Xã Phúc Thịnh, TP. Hà Nội</span>
             </div>
 
             <div className="flex items-center gap-4">

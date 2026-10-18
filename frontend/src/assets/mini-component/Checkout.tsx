@@ -661,14 +661,14 @@ export default function Checkout() {
 
       if (paymentMethod === "qr") {
         const info = `Thanh toan don hang #${res.MaDonHang}`;
-        const qrUrl = `https://img.vietqr.io/image/MB-82349824742-compact.png?amount=${total}&accountName=VU%20TU%20NAM&addInfo=${encodeURIComponent(
+        const qrUrl = `https://img.vietqr.io/image/MB-6693707170749-compact.png?amount=${total}&accountName=VU%20TU%20NAM&addInfo=${encodeURIComponent(
           info
         )}`;
         setQrModalData({
           qrUrl,
           amount: total,
-          accountNumber: "82349824742",
-          accountName: "VU TU NAM",
+          accountNumber: "6693707170749",
+          accountName: "VU THUY HIEN",
           info,
           MaDonHang: res.MaDonHang,
         });
