@@ -6,17 +6,18 @@ import { AuthRequest } from "../middlewares/authMiddleware";
 // 🟢 Lấy tất cả sản phẩm (chỉ hiển thị sản phẩm đang hoạt động)
 export const getAllSanPham = async (req: Request, res: Response) => {
   try {
-    const { vungmien, loaidan } = req.query;
+    const { vungmien, loaidan, keyword, xuatxu, minPrice, maxPrice, sort } =
+      req.query;
 
     let sql = `
-      SELECT sp.*, 
-             u.fullname AS NguoiDang, 
-             kh.SoDienThoai, 
+      SELECT sp.*,
+             u.fullname AS NguoiDang,
+             kh.SoDienThoai,
              kh.DiaChiDayDu,
-             CASE 
-               WHEN sp.Voucher IS NOT NULL AND sp.Voucher != '' 
+             CASE
+               WHEN sp.Voucher IS NOT NULL AND sp.Voucher != ''
                THEN ROUND(sp.GiaBan * (100 - CAST(REPLACE(sp.Voucher, '%', '') AS DECIMAL(5,2))) / 100, 2)
-               ELSE sp.GiaBan 
+               ELSE sp.GiaBan
              END AS GiaSauGiam
       FROM sanpham sp
       JOIN users u ON sp.user_id = u.id
@@ -34,8 +35,38 @@ export const getAllSanPham = async (req: Request, res: Response) => {
       sql += " AND sp.LoaiDoAn = ?";
       params.push(loaidan);
     }
+    if (keyword) {
+      sql += " AND (sp.TenSP LIKE ? OR sp.MoTa LIKE ?)";
+      params.push(`%${keyword}%`, `%${keyword}%`);
+    }
+    if (xuatxu) {
+      sql += " AND sp.XuatXu LIKE ?";
+      params.push(`%${xuatxu}%`);
+    }
 
-    sql += " ORDER BY sp.created_at DESC";
+    const havingClauses: string[] = [];
+    if (minPrice) {
+      havingClauses.push("GiaSauGiam >= ?");
+      params.push(Number(minPrice));
+    }
+    if (maxPrice) {
+      havingClauses.push("GiaSauGiam <= ?");
+      params.push(Number(maxPrice));
+    }
+    if (havingClauses.length) {
+      sql += ` HAVING ${havingClauses.join(" AND ")}`;
+    }
+
+    const sortOptions: Record<string, string> = {
+      gia_asc: "GiaSauGiam ASC",
+      gia_tang: "GiaSauGiam ASC",
+      gia_desc: "GiaSauGiam DESC",
+      gia_giam: "GiaSauGiam DESC",
+      moi_nhat: "sp.created_at DESC",
+      ban_chay: "sp.DaBan DESC",
+      danh_gia: "sp.DanhGiaTrungBinh DESC",
+    };
+    sql += ` ORDER BY ${sortOptions[sort as string] || "sp.created_at DESC"}`;
 
     const [rows] = await db.query(sql, params);
     res.json(rows);

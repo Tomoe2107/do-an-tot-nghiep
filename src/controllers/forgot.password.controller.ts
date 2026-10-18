@@ -51,7 +51,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     await sendEmail({
       to: email,
       subject: "Mật khẩu mới của bạn",
-      html: `Mật khẩu mới của bạn là: <strong>${newPassword.toUpperCase()}</strong><br><br>
+      html: `Mật khẩu mới của bạn là: <strong>${newPassword}</strong><br><br>
          Token xác thực: <code>${token}</code><br><br>
          Hãy đăng nhập ngay và đổi mật khẩu!<br>
          <a href="https://dacsanbamien.shop/login">Đăng nhập tại đây</a>`,

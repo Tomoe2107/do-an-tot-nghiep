@@ -29,7 +29,9 @@ export const getAllUsers = async (_req: Request, res: Response) => {
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi khi lấy danh sách", error: err });
+    res
+      .status(500)
+      .json({ message: "Lỗi khi lấy danh sách", error: (err as Error).message });
   }
 };
 
@@ -54,6 +56,16 @@ export const createUser = async (req: Request, res: Response) => {
       return res
         .status(400)
         .json({ message: "username và password là bắt buộc" });
+    }
+
+    const [existing]: any = await db.query(
+      "SELECT id FROM users WHERE username = ? OR email = ?",
+      [username, email]
+    );
+    if (existing.length > 0) {
+      return res
+        .status(400)
+        .json({ message: "Tài khoản hoặc email đã tồn tại" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -82,9 +94,9 @@ export const createUser = async (req: Request, res: Response) => {
 
     // Tạo bản ghi KhachHang
     await db.execute<ResultSetHeader>(
-      `INSERT INTO khachhang 
+      `INSERT INTO khachhang
    (MaKH, HoTen, SoDienThoai, TinhThanh,  PhuongXa, DiaChiChiTiet, user_id)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+   VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
         safeFullname,
@@ -115,7 +127,9 @@ export const createUser = async (req: Request, res: Response) => {
       .json({ message: "Tạo tài khoản thành công", user: (rows as any)[0] });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi khi tạo tài khoản", error: err });
+    res
+      .status(500)
+      .json({ message: "Lỗi khi tạo tài khoản", error: (err as Error).message });
   }
 };
 
@@ -134,14 +148,15 @@ export const updateUser = async (req: Request, res: Response) => {
       PhuongXa,
       DiaChiChiTiet,
       avatar,
+      password,
     } = req.body;
 
     // Lấy thông tin cũ
     const [oldRows] = await db.query(
       `
-      SELECT 
+      SELECT
         u.fullname, u.username, u.email, u.role, u.avatar,
-        kh.SoDienThoai, kh.TinhThanh, kh.PhuongXa, 
+        kh.SoDienThoai, kh.TinhThanh, kh.PhuongXa,
         kh.DiaChiChiTiet, kh.DiaChiDayDu
       FROM users u
       LEFT JOIN khachhang kh ON u.id = kh.MaKH
@@ -167,6 +182,11 @@ export const updateUser = async (req: Request, res: Response) => {
       DiaChiChiTiet: DiaChiChiTiet ?? oldUser.DiaChiChiTiet,
     };
 
+    // Chỉ hash & đổi mật khẩu khi admin thực sự gửi password mới lên
+    const hashedPassword = password
+      ? await bcrypt.hash(password, 10)
+      : null;
+
     // ✅ Tạo địa chỉ đầy đủ mới
     const DiaChiDayDu = [
       safeData.DiaChiChiTiet,
@@ -179,17 +199,29 @@ export const updateUser = async (req: Request, res: Response) => {
 
     // Cập nhật bảng users
     await db.execute<ResultSetHeader>(
-      `UPDATE users 
-       SET username = ?, email = ?, role = ?, avatar = ?, fullname = ?
+      `UPDATE users
+       SET username = ?, email = ?, role = ?, avatar = ?, fullname = ?${
+         hashedPassword ? ", password = ?" : ""
+       }
        WHERE id = ?`,
-      [
-        safeData.username,
-        safeData.email,
-        safeData.role,
-        safeData.avatar,
-        safeData.fullname,
-        id,
-      ]
+      hashedPassword
+        ? [
+            safeData.username,
+            safeData.email,
+            safeData.role,
+            safeData.avatar,
+            safeData.fullname,
+            hashedPassword,
+            id,
+          ]
+        : [
+            safeData.username,
+            safeData.email,
+            safeData.role,
+            safeData.avatar,
+            safeData.fullname,
+            id,
+          ]
     );
 
     // Cập nhật bảng KhachHang (🟢 lưu tên tỉnh/huyện/xã)
@@ -225,7 +257,9 @@ export const updateUser = async (req: Request, res: Response) => {
     res.json({ message: "Cập nhật thành công", user: (rows as any)[0] });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi khi cập nhật", error: err });
+    res
+      .status(500)
+      .json({ message: "Lỗi khi cập nhật", error: (err as Error).message });
   }
 };
 
@@ -237,6 +271,8 @@ export const deleteUser = async (req: Request, res: Response) => {
     res.json({ message: "Xóa tài khoản thành công" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi khi xóa", error: err });
+    res
+      .status(500)
+      .json({ message: "Lỗi khi xóa", error: (err as Error).message });
   }
 };

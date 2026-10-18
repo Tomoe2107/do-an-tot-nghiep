@@ -13,26 +13,43 @@ export const OrderController = {
 
       if (!user_id) return res.status(401).json({ message: "Chưa đăng nhập" });
 
-      let query = "";
-      let params: any[] = [];
+      const { keyword, status, tuNgay, denNgay } = req.query;
 
-      if (role === "admin") {
-        query = `
-          SELECT dh.*, kh.HoTen, kh.SoDienThoai
-          FROM donhang dh
-          LEFT JOIN khachhang kh ON dh.MaKH = kh.MaKH
-          ORDER BY dh.NgayDat DESC
-        `;
-      } else {
-        query = `
-          SELECT dh.*, kh.HoTen, kh.SoDienThoai
-          FROM donhang dh
-          LEFT JOIN khachhang kh ON dh.MaKH = kh.MaKH
-          WHERE dh.user_id = ?
-          ORDER BY dh.NgayDat DESC
-        `;
-        params = [user_id];
+      let query = `
+        SELECT dh.*, kh.HoTen, kh.SoDienThoai
+        FROM donhang dh
+        LEFT JOIN khachhang kh ON dh.MaKH = kh.MaKH
+      `;
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (role !== "admin") {
+        conditions.push("dh.user_id = ?");
+        params.push(user_id);
       }
+      if (keyword) {
+        conditions.push(
+          "(dh.MaDonHang LIKE ? OR kh.HoTen LIKE ? OR kh.SoDienThoai LIKE ?)"
+        );
+        params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+      }
+      if (status) {
+        conditions.push("dh.TrangThai = ?");
+        params.push(status);
+      }
+      if (tuNgay) {
+        conditions.push("DATE(dh.NgayDat) >= ?");
+        params.push(tuNgay);
+      }
+      if (denNgay) {
+        conditions.push("DATE(dh.NgayDat) <= ?");
+        params.push(denNgay);
+      }
+
+      if (conditions.length) {
+        query += " WHERE " + conditions.join(" AND ");
+      }
+      query += " ORDER BY dh.NgayDat DESC";
 
       const [rows]: any = await db.query(query, params);
       res.json(rows);
