@@ -118,7 +118,7 @@ export default function Product_special() {
         className="flex justify-center text-yellow-500 text-2xl mt-2"
         style={{ fontFamily: "'Ga Maamli', sans-serif" }}
       >
-        MTN Special
+        Ba Miền Special
       </motion.span>
 
       <motion.div

@@ -49,7 +49,7 @@ export default function BlogSection() {
             className="text-yellow-500 text-2xl mt-2"
             style={{ fontFamily: "'Ga Maamli', sans-serif" }}
           >
-            MTN Blogs
+            Ba Miền Blogs
           </motion.span>
 
           <motion.div

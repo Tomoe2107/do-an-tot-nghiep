@@ -128,7 +128,7 @@ export default function ContactSection() {
             className="text-yellow-500 text-2xl"
             style={{ fontFamily: "'Ga Maamli', sans-serif" }}
           >
-            MTN Contact
+            Ba Miền Contact
           </motion.span>
 
           <motion.div
