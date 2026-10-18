@@ -115,6 +115,7 @@ export default function AdminUsers() {
       PhuongXa: user.PhuongXa || "",
       DiaChiChiTiet: user.DiaChiChiTiet || "",
       avatar: user.avatar || "",
+      role: user.role || "user",
     });
 
     // ĐẢM BẢO provinces đã có dữ liệu
@@ -167,6 +168,10 @@ export default function AdminUsers() {
         PhuongXa: formData.PhuongXa || "",
         DiaChiChiTiet: formData.DiaChiChiTiet || "",
         avatar: formData.avatar || "",
+        role: formData.role || editingUser.role,
+        ...(formData.newPassword
+          ? { password: formData.newPassword }
+          : {}),
       };
 
       console.log("📦 Dữ liệu gửi lên (cập nhật):", cleanData);
@@ -178,7 +183,8 @@ export default function AdminUsers() {
       handleCloseModal();
     } catch (error: any) {
       console.error("Lỗi cập nhật:", error);
-      showError("Cập nhật thất bại!");
+      const msg = error.response?.data?.message || error.message;
+      showError(msg ? `Cập nhật thất bại: ${msg}` : "Cập nhật thất bại!");
     }
   };
 
@@ -195,7 +201,7 @@ export default function AdminUsers() {
         DiaChiChiTiet: formData.DiaChiChiTiet || "",
         avatar: formData.avatar || "",
         password: formData.password || "",
-        role: "user",
+        role: formData.role || "user",
       };
 
       console.log("📦 Dữ liệu gửi lên (tạo tài khoản):", cleanData);
@@ -207,12 +213,9 @@ export default function AdminUsers() {
       handleCloseModal();
     } catch (error: any) {
       console.error("Lỗi tạo tài khoản:", error);
-      showError("Tạo tài khoản thất bại!");
+      const msg = error.response?.data?.message || error.message;
+      showError(msg ? `Tạo tài khoản thất bại: ${msg}` : "Tạo tài khoản thất bại!");
     }
-  };
-
-  const handleResetPassword = () => {
-    alert(`Mật khẩu của ${formData.username} sẽ được đặt lại (demo UI).`);
   };
 
   const handleChange = (
@@ -479,6 +482,16 @@ export default function AdminUsers() {
                 />
               )}
 
+              {!creatingUser && (
+                <Input
+                  name="newPassword"
+                  type="password"
+                  value={formData.newPassword || ""}
+                  onChange={handleChange}
+                  placeholder="Mật khẩu mới (để trống nếu không đổi)"
+                />
+              )}
+
               <Input
                 name="SoDienThoai"
                 value={formData.SoDienThoai || ""}
@@ -522,6 +535,16 @@ export default function AdminUsers() {
                 onChange={handleChange}
                 placeholder="Địa chỉ chi tiết (số nhà, ngõ...)"
               />
+
+              <select
+                name="role"
+                value={formData.role || "user"}
+                onChange={handleChange}
+                className="border rounded-lg w-full p-2"
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
 
             <div className="flex justify-between mt-5">
@@ -529,15 +552,6 @@ export default function AdminUsers() {
                 Hủy
               </Button>
               <div className="flex gap-2">
-                {editingUser?.role === "admin" && !creatingUser && (
-                  <Button
-                    variant="secondary"
-                    className="bg-yellow-500 hover:bg-yellow-600 text-white"
-                    onClick={handleResetPassword}
-                  >
-                    Đặt lại mật khẩu
-                  </Button>
-                )}
                 <Button onClick={creatingUser ? handleCreateUser : handleSave}>
                   {creatingUser ? "Tạo tài khoản" : "Lưu thay đổi"}
                 </Button>

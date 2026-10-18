@@ -24,10 +24,10 @@ export const userApi = {
     return res.data;
   },
 
-  // ✅ Cập nhật tài khoản (cho phép truyền Partial<User>)
+  // ✅ Cập nhật tài khoản (cho phép truyền Partial<User>, kèm đổi mật khẩu)
   update: async (
     id: number,
-    data: Partial<User>
+    data: Partial<User> & { password?: string }
   ): Promise<{ message: string }> => {
     const res = await api.put<{ message: string }>(`${API_URL}/${id}`, data);
     return res.data;
