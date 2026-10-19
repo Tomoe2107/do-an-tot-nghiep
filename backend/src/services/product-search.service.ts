@@ -1,15 +1,17 @@
 import { db } from "../database";
 
 export interface ProductMatch {
+  MaSP: number;
   TenSP: string;
   GiaSauGiam: number;
+  HinhAnh: string | null;
 }
 
 export const findMatchingProducts = async (
   keyword: string
 ): Promise<ProductMatch[]> => {
   const [rows]: any = await db.query(
-    `SELECT TenSP, GiaBan,
+    `SELECT MaSP, TenSP, GiaBan, HinhAnh,
             CASE WHEN Voucher IS NOT NULL AND Voucher != ''
                  THEN ROUND(GiaBan * (100 - CAST(REPLACE(Voucher, '%', '') AS DECIMAL(5,2))) / 100, 2)
                  ELSE GiaBan END AS GiaSauGiam
@@ -28,7 +30,7 @@ export const findMatchingProductsLoose = async (
   message: string
 ): Promise<ProductMatch[]> => {
   const [rows]: any = await db.query(
-    `SELECT TenSP, GiaBan,
+    `SELECT MaSP, TenSP, GiaBan, HinhAnh,
             CASE WHEN Voucher IS NOT NULL AND Voucher != ''
                  THEN ROUND(GiaBan * (100 - CAST(REPLACE(Voucher, '%', '') AS DECIMAL(5,2))) / 100, 2)
                  ELSE GiaBan END AS GiaSauGiam

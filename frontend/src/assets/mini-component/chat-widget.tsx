@@ -3,13 +3,24 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaComments, FaTimes, FaPaperPlane } from "react-icons/fa";
 import ChatSuggestions from "./QA-suggest";
-import { sendMessageToBot } from "@/api/chatbot";
+import { sendMessageToBot, type ChatbotProduct } from "@/api/chatbot";
+import { useNavigate } from "react-router-dom";
 
 type Message = {
   id: string;
   from: "user" | "shop";
   text: string;
   time?: string;
+  products?: ChatbotProduct[];
+};
+
+const getProductImageUrl = (image: string | null) => {
+  if (!image) return "/img-produce/default.jpg";
+  if (image.startsWith("http")) return image;
+  if (image.startsWith("/img-produce") || image.startsWith("/img-introduce"))
+    return image;
+  const baseUrl = import.meta.env.VITE_BASE_SERVER || "http://localhost:4000";
+  return `${baseUrl}${image}`;
 };
 
 export default function ChatWidget({
@@ -29,6 +40,7 @@ export default function ChatWidget({
   const [isTyping, setIsTyping] = useState(false);
   const [unread, setUnread] = useState(0);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
 
   const FB_PAGE_ID = "61581439421009";
   const FB_MESSENGER_URL = `https://m.me/${FB_PAGE_ID}`;
@@ -107,6 +119,7 @@ export default function ChatWidget({
         from: "shop",
         text: data.reply,
         time: timeNow(),
+        products: data.products,
       };
       setMessages((m) => [...m, reply]);
 
@@ -216,6 +229,40 @@ export default function ChatWidget({
                       <div className="text-sm whitespace-pre-line">
                         {m.text}
                       </div>
+
+                      {m.products && m.products.length > 0 && (
+                        <div className="mt-2 flex flex-col gap-2">
+                          {m.products.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => {
+                                setOpen(false);
+                                navigate(`/product/${p.id}`);
+                              }}
+                              className="flex items-center gap-2 bg-white rounded-xl p-1.5 border border-gray-200 hover:border-orange-400 transition text-left cursor-pointer"
+                            >
+                              <img
+                                src={getProductImageUrl(p.image)}
+                                alt={p.name}
+                                className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                                onError={(e) => {
+                                  e.currentTarget.src =
+                                    "/img-produce/default.jpg";
+                                }}
+                              />
+                              <div className="min-w-0">
+                                <div className="text-xs font-medium text-gray-800 truncate">
+                                  {p.name}
+                                </div>
+                                <div className="text-xs text-red-600 font-semibold">
+                                  {Number(p.price).toLocaleString("vi-VN")}đ
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
                       {m.time && (
                         <div className="text-[10px] opacity-80 mt-1 text-right">
                           {m.time}
