@@ -175,7 +175,7 @@ app.use(
   },
   uploadAvatarRouter
 );
-app.use("/avatars", express.static(path.join(__dirname, "../public/avatars")));
+app.use("/avatars", express.static(path.join(__dirname, "../upload/avatars")));
 
 app.use(
   "/api/feedback",
