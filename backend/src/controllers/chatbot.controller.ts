@@ -17,6 +17,14 @@ const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
 const isOrderCodeShaped = (text: string): boolean =>
   /^#?(dh)?\d+$/i.test(text.trim());
 
+// Phân biệt "gõ tên món ăn ngắn gọn" (vd "khoai", "cá kho") với "gõ cả câu hỏi dài"
+// (vd "cụ thể chính sách như nào") khi cả 2 đều bị NLU nhận nhầm thành mã đơn hàng.
+// Từ ngắn (≤4 từ) thì coi là tên món -> trả lời "shop chưa bán mặt hàng này" là đủ.
+// Câu dài hơn thì không phải tên món mà là 1 câu hỏi bot không hiểu được -> nên
+// chuyển hướng sang nhắn tin Messenger cho người thật xử lý, thay vì trả lời sai lạc đề.
+const looksLikeFoodItemQuery = (text: string): boolean =>
+  text.trim().split(/\s+/).length <= 4;
+
 // Chat cho cả khách lẫn người đã đăng nhập nên không bắt buộc Bearer token
 // như authMiddleware - có thì giải mã lấy user_id để webhook tra đơn hàng dùng, không có thì bỏ qua.
 const tryGetUserId = (req: Request): number | undefined => {
@@ -82,9 +90,11 @@ export const sendMessage = async (req: Request, res: Response) => {
           maDonHang &&
           !isOrderCodeShaped(maDonHang)
         ) {
-          reply = appendFacebookRedirect(
-            `Hiện tại shop mình chưa bán mặt hàng "${maDonHang}" ạ.`
-          );
+          reply = looksLikeFoodItemQuery(maDonHang)
+            ? `Hiện tại shop mình chưa bán mặt hàng "${maDonHang}" ạ.`
+            : appendFacebookRedirect(
+                "Mình chưa hiểu rõ câu hỏi này của bạn."
+              );
           intent = "TimSanPham";
           isFallback = false;
         }
