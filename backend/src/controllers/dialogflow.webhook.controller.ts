@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../database";
 import { findMatchingProducts, formatProductReply } from "../services/product-search.service";
+import { appendFacebookRedirect } from "../constants/chatbot";
 
 // 🟢 Webhook fulfillment - Dialogflow gọi về đây mỗi khi khớp 1 intent có bật webhook,
 // để lấy dữ liệu động (giá sản phẩm, trạng thái đơn hàng...) từ DB thay vì trả lời cứng.
@@ -70,7 +71,9 @@ async function handleTraCuuDonHang(
     );
 
     if (!rows.length) {
-      return `Mình không tìm thấy đơn hàng nào khớp với "${keyword}" trong lịch sử đơn của bạn ạ.`;
+      return appendFacebookRedirect(
+        `Mình không tìm thấy đơn hàng nào khớp với "${keyword}" trong lịch sử đơn của bạn ạ.`
+      );
     }
 
     if (rows.length === 1) {
