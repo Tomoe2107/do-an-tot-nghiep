@@ -2,11 +2,19 @@ import api from "./axiosInstance";
 
 const BASE_URL = import.meta.env.VITE_API_URL;
 
+export interface ChatbotProduct {
+  id: number;
+  name: string;
+  price: number;
+  image: string | null;
+}
+
 export interface ChatbotReply {
   sessionId: string;
   reply: string;
   intent: string | null;
   isFallback: boolean;
+  products?: ChatbotProduct[];
 }
 
 // Gửi tin nhắn tới chatbot Dialogflow (qua backend), trả về câu trả lời của bot.

@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { detectIntent } from "../services/dialogflow.service";
 import {
+  findMatchingProducts,
   findMatchingProductsLoose,
   formatProductReply,
+  ProductMatch,
 } from "../services/product-search.service";
 
 const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
@@ -47,18 +49,26 @@ export const sendMessage = async (req: Request, res: Response) => {
     let reply = result.fulfillmentText;
     let intent = result.intent;
     let isFallback = result.isFallback;
+    let products: ProductMatch[] = [];
 
     // Lưới an toàn: NLU của Dialogflow chỉ nhận đúng những câu/từ đã được train, không
     // bao giờ phủ hết được toàn bộ tên sản phẩm trong DB. Nên nếu Dialogflow chưa nhận ra
     // đây là câu tìm sản phẩm (intent khác TimSanPham), vẫn thử dò thẳng tên sản phẩm
     // trong DB theo đúng tin nhắn gốc - đảm bảo gõ đúng tên sản phẩm có thật luôn trả lời được.
     if (intent !== "TimSanPham") {
-      const products = await findMatchingProductsLoose(message.trim());
-      if (products.length) {
-        reply = formatProductReply(products, message.trim());
+      const loose = await findMatchingProductsLoose(message.trim());
+      if (loose.length) {
+        reply = formatProductReply(loose, message.trim());
         intent = "TimSanPham";
         isFallback = false;
+        products = loose;
       }
+    } else {
+      // Dialogflow đã nhận đúng intent qua webhook riêng (không đi qua code này), nên
+      // tự dò lại sản phẩm ở đây để lấy kèm ảnh minh hoạ gửi về cho FE hiển thị.
+      const keyword =
+        (result.parameters?.ten_san_pham as string) || message.trim();
+      products = await findMatchingProducts(keyword);
     }
 
     res.json({
@@ -66,6 +76,12 @@ export const sendMessage = async (req: Request, res: Response) => {
       reply,
       intent,
       isFallback,
+      products: products.map((p) => ({
+        id: p.MaSP,
+        name: p.TenSP,
+        price: p.GiaSauGiam,
+        image: p.HinhAnh,
+      })),
     });
   } catch (error) {
     console.error("❌ Lỗi chatbot sendMessage:", error);
