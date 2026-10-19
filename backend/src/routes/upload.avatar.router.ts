@@ -8,10 +8,12 @@ import { authMiddleware } from "../middlewares/authMiddleware";
 
 const router = express.Router();
 
-// ⚙️ Cấu hình multer: lưu avatar vào public/avatars
+// ⚙️ Cấu hình multer: lưu avatar vào upload/avatars (cùng thư mục có Volume bền
+// vững với ảnh sản phẩm - Railway chỉ cho 1 volume/service nên gộp chung vào đây
+// để avatar không bị mất mỗi lần deploy lại, thay vì public/avatars cũ không có volume)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const avatarPath = path.join(__dirname, "../../public/avatars");
+    const avatarPath = path.join(__dirname, "../../upload/avatars");
     if (!fs.existsSync(avatarPath)) {
       fs.mkdirSync(avatarPath, { recursive: true });
       console.log("📂 Đã tạo thư mục:", avatarPath);
