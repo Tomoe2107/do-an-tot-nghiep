@@ -82,7 +82,9 @@ export const sendMessage = async (req: Request, res: Response) => {
           maDonHang &&
           !isOrderCodeShaped(maDonHang)
         ) {
-          reply = `Hiện tại shop mình chưa bán mặt hàng "${maDonHang}" ạ.`;
+          reply = appendFacebookRedirect(
+            `Hiện tại shop mình chưa bán mặt hàng "${maDonHang}" ạ.`
+          );
           intent = "TimSanPham";
           isFallback = false;
         }
