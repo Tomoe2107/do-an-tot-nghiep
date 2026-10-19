@@ -516,7 +516,7 @@ export default function Checkout() {
     )
       return hinhAnh;
     const baseUrl =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+      import.meta.env.VITE_BASE_SERVER || "http://localhost:4000";
     return `${baseUrl}${hinhAnh}`;
   };
 
