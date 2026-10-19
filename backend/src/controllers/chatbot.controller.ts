@@ -10,6 +10,12 @@ import {
 
 const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
 
+// Mã đơn hàng thật có dạng "DH1784819617645" hoặc 1 đoạn số (vd "45", "604805"),
+// có thể kèm "#" phía trước. Dùng để phân biệt "gõ mã đơn" với "gõ tên sản phẩm" -
+// NLU hay nhầm các từ ngắn như "khoai" thành ý định tra cứu đơn hàng.
+const isOrderCodeShaped = (text: string): boolean =>
+  /^#?(dh)?\d+$/i.test(text.trim());
+
 // Chat cho cả khách lẫn người đã đăng nhập nên không bắt buộc Bearer token
 // như authMiddleware - có thì giải mã lấy user_id để webhook tra đơn hàng dùng, không có thì bỏ qua.
 const tryGetUserId = (req: Request): number | undefined => {
@@ -56,12 +62,29 @@ export const sendMessage = async (req: Request, res: Response) => {
     // đây là câu tìm sản phẩm (intent khác TimSanPham), vẫn thử dò thẳng tên sản phẩm
     // trong DB theo đúng tin nhắn gốc - đảm bảo gõ đúng tên sản phẩm có thật luôn trả lời được.
     if (intent !== "TimSanPham") {
-      const loose = await findMatchingProductsLoose(message.trim());
+      const trimmed = message.trim();
+      const loose = await findMatchingProductsLoose(trimmed);
+
       if (loose.length) {
-        reply = formatProductReply(loose, message.trim());
+        reply = formatProductReply(loose, trimmed);
         intent = "TimSanPham";
         isFallback = false;
         products = loose;
+      } else {
+        // Chỉ ghi đè khi Dialogflow đã THỰC SỰ trích ra giá trị cho ma_don_hang
+        // (không rỗng) mà giá trị đó lại không giống mã đơn - tức bot nhận nhầm
+        // 1 từ như "khoai" thành mã đơn hàng. Nếu ma_don_hang còn rỗng (Dialogflow
+        // đang hỏi lại mã, vd "kiểm tra đơn hàng") thì giữ nguyên câu hỏi lại đó.
+        const maDonHang = (result.parameters?.ma_don_hang as string) || "";
+        if (
+          intent === "TraCuuDonHang" &&
+          maDonHang &&
+          !isOrderCodeShaped(maDonHang)
+        ) {
+          reply = `Hiện tại shop mình chưa bán mặt hàng "${maDonHang}" ạ.`;
+          intent = "TimSanPham";
+          isFallback = false;
+        }
       }
     } else {
       // Dialogflow đã nhận đúng intent qua webhook riêng (không đi qua code này), nên
