@@ -7,6 +7,7 @@ import {
   formatProductReply,
   ProductMatch,
 } from "../services/product-search.service";
+import { appendFacebookRedirect } from "../constants/chatbot";
 
 const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
 
@@ -92,6 +93,12 @@ export const sendMessage = async (req: Request, res: Response) => {
       const keyword =
         (result.parameters?.ten_san_pham as string) || message.trim();
       products = await findMatchingProducts(keyword);
+    }
+
+    // Bot thật sự không hiểu/không xử lý được câu hỏi - hướng khách nhắn
+    // trực tiếp qua Facebook thay vì để họ bị bí ở khung chat.
+    if (isFallback) {
+      reply = appendFacebookRedirect(reply);
     }
 
     res.json({
