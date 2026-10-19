@@ -12,6 +12,7 @@ type Message = {
   text: string;
   time?: string;
   products?: ChatbotProduct[];
+  redirectMessenger?: boolean;
 };
 
 const getProductImageUrl = (image: string | null) => {
@@ -42,8 +43,8 @@ export default function ChatWidget({
   const listRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
 
-  const FB_PAGE_ID = "61581439421009";
-  const FB_MESSENGER_URL = `https://m.me/${FB_PAGE_ID}`;
+  // Phải khớp với FACEBOOK_MESSENGER_URL bên backend (src/constants/chatbot.ts)
+  const FB_MESSENGER_URL = "https://web.facebook.com/messages/t/1358022647400564";
 
   // sessionId giữ xuyên suốt trình duyệt để Dialogflow nhớ ngữ cảnh hội thoại
   const sessionIdRef = useRef<string>("");
@@ -120,27 +121,27 @@ export default function ChatWidget({
         text: data.reply,
         time: timeNow(),
         products: data.products,
+        redirectMessenger: data.isFallback,
       };
       setMessages((m) => [...m, reply]);
 
-      // Bot không hiểu ý khách -> gợi ý nhắn trực tiếp qua Messenger
+      // Bot không hiểu/không xử lý được ý khách -> tự mở thẳng Messenger, không
+      // dán link thô vào tin nhắn. Mở ngay (không delay) để trình duyệt không
+      // coi đây là popup phát sinh ngoài thao tác của người dùng.
       if (data.isFallback) {
-        setTimeout(() => {
-          window.open(FB_MESSENGER_URL, "_blank");
-        }, 1200);
+        window.open(FB_MESSENGER_URL, "_blank");
       }
     } catch (error) {
       console.error("Lỗi gửi tin nhắn tới chatbot:", error);
       const reply: Message = {
         id: `s_${Date.now()}`,
         from: "shop",
-        text: "Xin lỗi, chatbot đang gặp sự cố. Bạn có thể inbox trực tiếp với admin qua Messenger nhé!",
+        text: "Xin lỗi, chatbot đang gặp sự cố.",
         time: timeNow(),
+        redirectMessenger: true,
       };
       setMessages((m) => [...m, reply]);
-      setTimeout(() => {
-        window.open(FB_MESSENGER_URL, "_blank");
-      }, 1200);
+      window.open(FB_MESSENGER_URL, "_blank");
     } finally {
       setIsTyping(false);
     }
@@ -261,6 +262,17 @@ export default function ChatWidget({
                             </button>
                           ))}
                         </div>
+                      )}
+
+                      {m.redirectMessenger && (
+                        <a
+                          href={FB_MESSENGER_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[#0084FF] hover:bg-[#006fd6] rounded-lg px-3 py-1.5 transition"
+                        >
+                          Nhắn tin Messenger
+                        </a>
                       )}
 
                       {m.time && (

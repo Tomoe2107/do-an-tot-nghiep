@@ -7,7 +7,7 @@ import {
   formatProductReply,
   ProductMatch,
 } from "../services/product-search.service";
-import { appendFacebookRedirect } from "../constants/chatbot";
+import { markNeedsHuman, extractNeedsHuman } from "../constants/chatbot";
 
 const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
 
@@ -92,9 +92,7 @@ export const sendMessage = async (req: Request, res: Response) => {
         ) {
           reply = looksLikeFoodItemQuery(maDonHang)
             ? `Hiện tại shop mình chưa bán mặt hàng "${maDonHang}" ạ.`
-            : appendFacebookRedirect(
-                "Mình chưa hiểu rõ câu hỏi này của bạn."
-              );
+            : markNeedsHuman("Mình chưa hiểu rõ câu hỏi này của bạn.");
           intent = "TimSanPham";
           isFallback = false;
         }
@@ -107,11 +105,12 @@ export const sendMessage = async (req: Request, res: Response) => {
       products = await findMatchingProducts(keyword);
     }
 
-    // Bot thật sự không hiểu/không xử lý được câu hỏi - hướng khách nhắn
-    // trực tiếp qua Facebook thay vì để họ bị bí ở khung chat.
-    if (isFallback) {
-      reply = appendFacebookRedirect(reply);
-    }
+    // Bóc marker "cần người thật" nếu có (từ webhook tra đơn hàng, hoặc từ nhánh
+    // câu hỏi dài phía trên) - gộp chung với cờ isFallback gốc của Dialogflow để
+    // FE biết khi nào cần tự mở Messenger, không hiển thị link thô trong chat.
+    const extracted = extractNeedsHuman(reply);
+    reply = extracted.text;
+    isFallback = isFallback || extracted.needsHuman;
 
     res.json({
       sessionId: finalSessionId,
