@@ -25,6 +25,25 @@ const isOrderCodeShaped = (text: string): boolean =>
 const looksLikeFoodItemQuery = (text: string): boolean =>
   text.trim().split(/\s+/).length <= 4;
 
+// Lưới an toàn thứ 2: 1 số intent Dialogflow có câu trả lời cấu hình cứng ngay trên
+// console (không đi qua code này) mà nội dung thực chất là bảo khách tự liên hệ -
+// vd "Bạn hãy chat trực tiếp với shop nha!". Dialogflow coi đây là match thành công
+// (isFallback=false) nên lưới an toàn isFallback phía dưới không bắt được. Phát hiện
+// thêm bằng từ khoá để vẫn tự điều hướng Messenger cho đúng ý, thay vì để khách tự đọc
+// rồi tự tìm cách liên hệ.
+const HUMAN_HANDOFF_HINTS = [
+  "chat trực tiếp",
+  "nhắn tin trực tiếp",
+  "liên hệ trực tiếp",
+  "inbox trực tiếp",
+  "liên hệ shop",
+  "liên hệ admin",
+];
+const mentionsDirectContact = (text: string): boolean => {
+  const lower = text.toLowerCase();
+  return HUMAN_HANDOFF_HINTS.some((hint) => lower.includes(hint));
+};
+
 // Chat cho cả khách lẫn người đã đăng nhập nên không bắt buộc Bearer token
 // như authMiddleware - có thì giải mã lấy user_id để webhook tra đơn hàng dùng, không có thì bỏ qua.
 const tryGetUserId = (req: Request): number | undefined => {
@@ -110,7 +129,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     // FE biết khi nào cần tự mở Messenger, không hiển thị link thô trong chat.
     const extracted = extractNeedsHuman(reply);
     reply = extracted.text;
-    isFallback = isFallback || extracted.needsHuman;
+    isFallback = isFallback || extracted.needsHuman || mentionsDirectContact(reply);
 
     res.json({
       sessionId: finalSessionId,
