@@ -10,17 +10,43 @@ import {
   FaBoxes,
   FaShoppingBag,
 } from "react-icons/fa";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { showError } from "@/common/toast";
+
+// Chỉ render giao diện/gọi API quản trị khi đã đăng nhập VÀ role là admin.
+// Trước đây route /manage-page/* không kiểm tra gì cả, nên ai gõ thẳng URL
+// cũng thấy được khung trang admin (dù API bên trong đã bị BE chặn).
+const isAdminLoggedIn = (): boolean => {
+  const token = localStorage.getItem("token");
+  const rawUser = localStorage.getItem("user");
+  if (!token || !rawUser) return false;
+  try {
+    const user = JSON.parse(rawUser);
+    return user?.role === "admin";
+  } catch {
+    return false;
+  }
+};
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const authorized = isAdminLoggedIn();
+
+  useEffect(() => {
+    if (!authorized) {
+      showError("Bạn cần đăng nhập tài khoản admin để truy cập trang này!");
+      navigate("/login", { replace: true });
+    }
+  }, [authorized, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   };
+
+  if (!authorized) return null;
 
   return (
     <div className="flex min-h-screen bg-gray-100 relative">
