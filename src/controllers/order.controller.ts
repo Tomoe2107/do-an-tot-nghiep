@@ -198,6 +198,12 @@ export const OrderController = {
           .json({ message: "Không tìm thấy sản phẩm trong giỏ" });
 
       for (const item of cartItems) {
+        if (!Number.isInteger(item.SoLuong) || item.SoLuong <= 0) {
+          await connection.rollback();
+          return res
+            .status(400)
+            .json({ message: "Số lượng sản phẩm trong giỏ không hợp lệ" });
+        }
         if (item.SoLuongTon < item.SoLuong) {
           await connection.rollback();
           return res.status(400).json({
@@ -364,6 +370,13 @@ export const OrderController = {
       }
 
       for (const item of items) {
+        if (!Number.isInteger(item.SoLuong) || item.SoLuong <= 0) {
+          await connection.rollback();
+          return res
+            .status(400)
+            .json({ message: "Số lượng sản phẩm phải là số nguyên dương" });
+        }
+
         const product = products.find((p: any) => p.MaSP === item.MaSP);
         if (!product || product.SoLuongTon < item.SoLuong) {
           await connection.rollback();

@@ -39,12 +39,38 @@ export const OrderDetailController = {
           .json({ message: "Thiếu MaSP hoặc GiaBanTaiThoiDiem" });
       }
 
-      // Kiểm tra tồn kho
+      if (!Number.isInteger(SoLuong) || SoLuong === 0) {
+        await connection.rollback();
+        return res
+          .status(400)
+          .json({ message: "Số lượng không hợp lệ" });
+      }
+
+      const tempOrderId = `CART_${user_id}`;
+
+      // SoLuong ở đây là số cộng/trừ vào giỏ (nút +/- của FE dùng số âm để giảm), nên phải tính
+      // ra số lượng CUỐI CÙNG trong giỏ trước khi ghi, không được để nó về 0 hoặc âm.
+      const [existingCart]: any = await connection.query(
+        `SELECT SoLuong FROM chitietdonhang WHERE MaDonHang = ? AND MaSP = ? FOR UPDATE`,
+        [tempOrderId, MaSP]
+      );
+      const currentSoLuong = existingCart.length ? existingCart[0].SoLuong : 0;
+      const newSoLuong = currentSoLuong + SoLuong;
+
+      if (newSoLuong <= 0) {
+        await connection.rollback();
+        return res.status(400).json({
+          message:
+            "Số lượng sản phẩm không thể về 0 hoặc âm, hãy xóa sản phẩm khỏi giỏ nếu không muốn mua nữa",
+        });
+      }
+
+      // Kiểm tra tồn kho - so với tổng số lượng SAU khi cộng/trừ, không phải chỉ riêng phần vừa gửi lên
       const [stock]: any = await connection.query(
         `SELECT SoLuongTon FROM sanpham WHERE MaSP = ? FOR UPDATE`,
         [MaSP]
       );
-      if (!stock.length || stock[0].SoLuongTon < SoLuong) {
+      if (!stock.length || stock[0].SoLuongTon < newSoLuong) {
         await connection.rollback();
         return res.status(400).json({
           message: `Sản phẩm chỉ còn ${
@@ -52,8 +78,6 @@ export const OrderDetailController = {
           } cái trong kho`,
         });
       }
-
-      const tempOrderId = `CART_${user_id}`;
 
       // THÊM THẲNG VÀO ChiTietDonHang – KHÔNG TẠO DonHang
       const sql = `
