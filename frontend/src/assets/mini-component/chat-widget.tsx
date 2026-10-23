@@ -5,6 +5,7 @@ import { FaComments, FaTimes, FaPaperPlane } from "react-icons/fa";
 import ChatSuggestions from "./QA-suggest";
 import { sendMessageToBot, type ChatbotProduct } from "@/api/chatbot";
 import { useNavigate } from "react-router-dom";
+import { showError } from "@/common/toast";
 
 type Message = {
   id: string;
@@ -147,6 +148,38 @@ export default function ChatWidget({
     }
   };
 
+  // Khách bấm thẳng vào thẻ sản phẩm gợi ý trong chat -> mua ngay luôn, không
+  // bắt vòng qua trang chi tiết sản phẩm nữa.
+  const handleBuyNowFromChat = (p: ChatbotProduct) => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    if (!token && !user) {
+      showError("Vui lòng đăng nhập để mua hàng!");
+      setOpen(false);
+      navigate("/login");
+      return;
+    }
+
+    localStorage.removeItem("cart_checkout");
+    setOpen(false);
+
+    setTimeout(() => {
+      const buyNowItem = {
+        MaSP: p.id,
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        GiaBan: p.price,
+        hinhAnh: p.image,
+        quantity: 1,
+        checked: true,
+        buyNow: true,
+      };
+      localStorage.setItem("cart_checkout", JSON.stringify([buyNowItem]));
+      navigate("/checkout");
+    }, 50);
+  };
+
   const toggleOpen = () => {
     setOpen((o) => {
       const next = !o;
@@ -234,32 +267,43 @@ export default function ChatWidget({
                       {m.products && m.products.length > 0 && (
                         <div className="mt-2 flex flex-col gap-2">
                           {m.products.map((p) => (
-                            <button
+                            <div
                               key={p.id}
-                              onClick={() => {
-                                setOpen(false);
-                                navigate(`/product/${p.id}`);
-                              }}
-                              className="flex items-center gap-2 bg-white rounded-xl p-1.5 border border-gray-200 hover:border-orange-400 transition text-left cursor-pointer"
+                              className="flex items-center gap-2 bg-white rounded-xl p-1.5 border border-gray-200"
                             >
-                              <img
-                                src={getProductImageUrl(p.image)}
-                                alt={p.name}
-                                className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
-                                onError={(e) => {
-                                  e.currentTarget.src =
-                                    "/img-produce/default.jpg";
+                              <button
+                                onClick={() => {
+                                  setOpen(false);
+                                  navigate(`/product/${p.id}`);
                                 }}
-                              />
-                              <div className="min-w-0">
-                                <div className="text-xs font-medium text-gray-800 truncate">
-                                  {p.name}
+                                className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+                                title="Xem chi tiết sản phẩm"
+                              >
+                                <img
+                                  src={getProductImageUrl(p.image)}
+                                  alt={p.name}
+                                  className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                                  onError={(e) => {
+                                    e.currentTarget.src =
+                                      "/img-produce/default.jpg";
+                                  }}
+                                />
+                                <div className="min-w-0">
+                                  <div className="text-xs font-medium text-gray-800 truncate">
+                                    {p.name}
+                                  </div>
+                                  <div className="text-xs text-red-600 font-semibold">
+                                    {Number(p.price).toLocaleString("vi-VN")}đ
+                                  </div>
                                 </div>
-                                <div className="text-xs text-red-600 font-semibold">
-                                  {Number(p.price).toLocaleString("vi-VN")}đ
-                                </div>
-                              </div>
-                            </button>
+                              </button>
+                              <button
+                                onClick={() => handleBuyNowFromChat(p)}
+                                className="shrink-0 text-[11px] font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-lg px-2.5 py-2 transition cursor-pointer"
+                              >
+                                Mua ngay
+                              </button>
+                            </div>
                           ))}
                         </div>
                       )}
