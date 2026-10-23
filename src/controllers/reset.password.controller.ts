@@ -33,12 +33,10 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     const user = rows[0];
 
-    // So sánh mật khẩu tạm thời với password hiện tại
-    const isTempPassValid = await bcrypt.compare(tempPassword, user.password);
-    if (!isTempPassValid) {
+    if (!user.reset_token || !user.reset_expire) {
       return res.status(400).json({
         success: false,
-        message: "Mật khẩu tạm thời không hợp lệ!",
+        message: "Chưa yêu cầu đặt lại mật khẩu hoặc mật khẩu tạm đã được dùng!",
       });
     }
 
@@ -48,6 +46,16 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: "Mật khẩu tạm thời đã hết hạn!",
+      });
+    }
+
+    // So sánh mật khẩu tạm thời với hash lưu ở reset_token (KHÔNG so với password thật -
+    // password thật chỉ bị đổi sau khi xác nhận đúng mật khẩu tạm ở bước này)
+    const isTempPassValid = await bcrypt.compare(tempPassword, user.reset_token);
+    if (!isTempPassValid) {
+      return res.status(400).json({
+        success: false,
+        message: "Mật khẩu tạm thời không hợp lệ!",
       });
     }
 

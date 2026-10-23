@@ -4,6 +4,9 @@ import bcrypt from "bcrypt";
 import { db } from "../database";
 import { sendEmail } from "../email.service";
 
+const GENERIC_SUCCESS_MESSAGE =
+  "Nếu email tồn tại trong hệ thống, mật khẩu tạm thời đã được gửi tới email đó!";
+
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
@@ -14,54 +17,43 @@ export const forgotPassword = async (req: Request, res: Response) => {
         .json({ success: false, message: "Email không được để trống!" });
     }
 
-    // 1. Kiểm tra email tồn tại
     const [rows]: any = await db.execute(
-      "SELECT * FROM users WHERE email = ?",
+      "SELECT id FROM users WHERE email = ?",
       [email]
     );
+
+    // Không tiết lộ email có tồn tại hay không (tránh user enumeration) - luôn trả cùng 1
+    // thông báo, chỉ thực sự gửi mail khi email có tồn tại.
     if (!rows || rows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Email không tồn tại!" });
+      return res.json({ success: true, message: GENERIC_SUCCESS_MESSAGE });
     }
 
     const user = rows[0];
-    if (!user.id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Người dùng không hợp lệ!" });
-    }
 
-    // 2. Tạo mật khẩu mới ngẫu nhiên (8 ký tự hex)
-    const newPassword = crypto.randomBytes(4).toString("hex");
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // 3. Tạo token xác thực
-    const token = crypto.randomBytes(16).toString("hex");
-    const tokenHash = await bcrypt.hash(token, 10);
+    // Mật khẩu tạm 16 ký tự hex (64-bit) - đủ dài để chống dò brute-force trong 15 phút hiệu lực
+    const tempPassword = crypto.randomBytes(8).toString("hex");
+    const tempPasswordHash = await bcrypt.hash(tempPassword, 10);
     const expireDate = new Date(Date.now() + 15 * 60 * 1000); // 15 phút từ bây giờ
 
-    // 4. Cập nhật DB
+    // Chỉ lưu hash mật khẩu tạm vào reset_token - KHÔNG đụng vào cột password thật, để
+    // request quên mật khẩu (có thể bị ai đó gửi hộ bằng email của nạn nhân) không tự ý
+    // "đá" người dùng thật ra khỏi tài khoản của họ khi họ chưa xác nhận đổi mật khẩu.
     await db.execute(
-      "UPDATE users SET password = ?, reset_token = ?, reset_expire = ? WHERE id = ?",
-      [hashedPassword, tokenHash, expireDate, user.id]
+      "UPDATE users SET reset_token = ?, reset_expire = ? WHERE id = ?",
+      [tempPasswordHash, expireDate, user.id]
     );
 
-    // 5. Gửi email trực tiếp mật khẩu mới
     await sendEmail({
       to: email,
-      subject: "Mật khẩu mới của bạn",
-      html: `Mật khẩu mới của bạn là: <strong>${newPassword}</strong><br><br>
-         Token xác thực: <code>${token}</code><br><br>
-         Hãy đăng nhập ngay và đổi mật khẩu!<br>
+      subject: "Mật khẩu tạm thời của bạn",
+      html: `Mật khẩu tạm thời (hiệu lực 15 phút): <strong>${tempPassword}</strong><br><br>
+         Dùng mật khẩu này tại trang đặt lại mật khẩu để đổi sang mật khẩu mới.<br>
+         Nếu bạn không yêu cầu đổi mật khẩu, hãy bỏ qua email này.<br>
          <a href="https://dacsanbamien.shop/login">Đăng nhập tại đây</a>`,
       replyTo: email,
     });
 
-    return res.json({
-      success: true,
-      message: "Mật khẩu mới đã được gửi vào email của bạn!",
-    });
+    return res.json({ success: true, message: GENERIC_SUCCESS_MESSAGE });
   } catch (error) {
     console.error("Forgot password error:", error); // Chỉ log server
     return res.status(500).json({ success: false, message: "Lỗi server" });

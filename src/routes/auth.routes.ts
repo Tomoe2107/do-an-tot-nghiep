@@ -9,6 +9,10 @@ import {
 import { forgotPassword } from "../controllers/forgot.password.controller";
 import { resetPassword } from "../controllers/reset.password.controller";
 import { authMiddleware } from "../middlewares/authMiddleware";
+import {
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
+} from "../middlewares/passwordResetRateLimit";
 
 const router = Router();
 
@@ -17,7 +21,7 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.get("/profile", authMiddleware, getProfile); // Router lấy thông tin tài khoản để hiện thị lên FE
 router.put("/users/:id", authMiddleware, updateUser);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+router.post("/forgot-password", forgotPasswordLimiter, forgotPassword);
+router.post("/reset-password", resetPasswordLimiter, resetPassword);
 
 export default router;
