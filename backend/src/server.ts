@@ -27,6 +27,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Backend luôn chạy sau reverse proxy (Railway, Cloudflare Tunnel) - cần khai báo để
+// express lấy đúng IP client thật từ X-Forwarded-For, nếu không rate-limit (express-rate-limit)
+// sẽ coi mọi request đều cùng 1 IP (IP của proxy) và báo lỗi validate khi chạy production.
+app.set("trust proxy", 1);
+
 app.use(express.json());
 
 // Cấu hình CORS cho các frontend port khác nhau
