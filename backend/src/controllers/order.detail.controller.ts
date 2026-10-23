@@ -39,6 +39,16 @@ export const OrderDetailController = {
           .json({ message: "Thiếu MaSP hoặc GiaBanTaiThoiDiem" });
       }
 
+      // Chặn số lượng 0/âm/không nguyên - nếu không, "SoLuong = SoLuong + VALUES(SoLuong)"
+      // bên dưới có thể bị lợi dụng để trừ ngược số lượng đã có trong giỏ (gửi SoLuong âm),
+      // hoặc tạo dòng giỏ hàng với số lượng vô nghĩa.
+      if (!Number.isInteger(SoLuong) || SoLuong <= 0) {
+        await connection.rollback();
+        return res
+          .status(400)
+          .json({ message: "Số lượng sản phẩm không hợp lệ" });
+      }
+
       // Kiểm tra tồn kho
       const [stock]: any = await connection.query(
         `SELECT SoLuongTon FROM sanpham WHERE MaSP = ? FOR UPDATE`,
