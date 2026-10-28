@@ -41,3 +41,31 @@ cron.schedule("* * * * * *", async () => {
     }
   }
 });
+
+// Thời hạn chờ khách hoàn tất thanh toán PayPal/Chuyển khoản trước khi tự động huỷ (phút).
+// Các đơn này vẫn ở "Chờ thanh toán" (chưa trừ tồn kho, chưa dọn giỏ hàng - xem finalizeOrder
+// trong order.controller.ts) nên huỷ ở đây chỉ cần đổi trạng thái, không phải hoàn trả gì cả.
+const PAYMENT_TIMEOUT_MINUTES = 5;
+
+// Cron chạy mỗi phút: quét DB trực tiếp (không cần nhớ trong bộ nhớ, sống sót qua restart
+// server) để tự động đánh "Thanh toán thất bại" cho đơn quá hạn chưa thanh toán - giống cách
+// các sàn TMĐT lớn tự huỷ đơn khi khách không quét QR/không hoàn tất thanh toán.
+cron.schedule("* * * * *", async () => {
+  try {
+    const [result]: any = await db.query(
+      `UPDATE donhang
+       SET TrangThai = 'Thanh toán thất bại', NgayCapNhat = NOW()
+       WHERE TrangThai = 'Chờ thanh toán'
+         AND PhuongThucThanhToan IN ('PayPal', 'Chuyển khoản')
+         AND NgayDat <= DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+      [PAYMENT_TIMEOUT_MINUTES]
+    );
+    if (result.affectedRows > 0) {
+      console.log(
+        `⏱️ ${result.affectedRows} đơn quá hạn ${PAYMENT_TIMEOUT_MINUTES} phút chưa thanh toán → Thanh toán thất bại`
+      );
+    }
+  } catch (err) {
+    console.error("❌ Lỗi kiểm tra đơn quá hạn thanh toán:", err);
+  }
+});

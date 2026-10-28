@@ -2,6 +2,7 @@
 
 import { Response } from "express";
 import { db } from "../database";
+import { ProductReview } from "../model/products.review.model";
 import { AuthRequest } from "../middlewares/authMiddleware";
 import { stripHtml } from "../utils/sanitize";
 
@@ -147,7 +148,7 @@ export const getAverageRating = async (req: AuthRequest, res: Response) => {
     const { MaSP } = req.params;
 
     const [rows]: any = await db.execute(
-      `SELECT
+      `SELECT 
           AVG(rating) AS average_rating,
           COUNT(*) AS total_reviews
        FROM danhgiasanpham

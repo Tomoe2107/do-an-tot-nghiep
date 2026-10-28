@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../database";
 import axios from "axios";
+import { finalizeOrder } from "./order.controller";
 
 // ===================== PAYPAL SANDBOX CONFIG =====================
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID?.trim()!;
@@ -164,6 +165,20 @@ export const createPayment = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// ===================== HOÀN TẤT ĐƠN HÀNG SAU KHI PAYPAL XÁC NHẬN =====================
+// Chỉ được gọi khi PayPal capture trả về COMPLETED thật sự. Dùng chung finalizeOrder() với
+// luồng admin xác nhận chuyển khoản (order.controller.ts) - nơi thực sự chuyển sản phẩm từ
+// giỏ hàng/mua-ngay-hoãn sang đơn thật + trừ tồn kho, rồi gắn lại đúng phương thức PayPal.
+async function finalizePaypalOrder(MaDonHang: string) {
+  const finalized = await finalizeOrder(MaDonHang);
+  if (finalized) {
+    await db.query(
+      "UPDATE donhang SET PhuongThucThanhToan = 'PayPal' WHERE MaDonHang = ?",
+      [MaDonHang]
+    );
+  }
+}
+
 // ===================== PAYPAL SUCCESS =====================
 export const paypalSuccess = async (req: Request, res: Response) => {
   const { orderId: MaDonHang, token: paypalOrderID, PayerID } = req.query;
@@ -207,10 +222,7 @@ export const paypalSuccess = async (req: Request, res: Response) => {
     // Kiểm tra trạng thái capture
     const captureStatus = captureResp.data.status;
     if (captureStatus === "COMPLETED") {
-      await db.query(
-        "UPDATE donhang SET TrangThai = ?, PhuongThucThanhToan = ?, NgayCapNhat = NOW() WHERE MaDonHang = ?",
-        ["Đã xác nhận", "PayPal", MaDonHang]
-      );
+      await finalizePaypalOrder(MaDonHang);
       console.log(`✅ Đơn hàng ${MaDonHang} đã được thanh toán`);
       return res.redirect(
         `${process.env.FRONTEND_URL}/payment-success?orderId=${MaDonHang}`
@@ -257,14 +269,7 @@ export const paypalWebhook = async (req: Request, res: Response) => {
     if (event.event_type === "PAYMENT.CAPTURE.COMPLETED") {
       const MaDonHang = event.resource?.purchase_units?.[0]?.reference_id;
       if (MaDonHang) {
-        await db.query(
-          `UPDATE donhang 
-           SET TrangThai = 'Đã xác nhận',
-               PhuongThucThanhToan = 'PayPal',
-               NgayCapNhat = NOW()
-           WHERE MaDonHang = ?`,
-          [MaDonHang]
-        );
+        await finalizePaypalOrder(MaDonHang);
       }
     }
 

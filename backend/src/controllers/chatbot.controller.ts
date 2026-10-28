@@ -9,7 +9,12 @@ import {
 } from "../services/product-search.service";
 import { markNeedsHuman, extractNeedsHuman } from "../constants/chatbot";
 
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "Thiếu JWT_SECRET trong biến môi trường - không được phép chạy với secret mặc định"
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Mã đơn hàng thật có dạng "DH1784819617645" hoặc 1 đoạn số (vd "45", "604805"),
 // có thể kèm "#" phía trước. Dùng để phân biệt "gõ mã đơn" với "gõ tên sản phẩm" -

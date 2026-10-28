@@ -10,7 +10,12 @@ import nodemailer from "nodemailer"; // // Làm chức năng quên mật khẩu
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "Thiếu JWT_SECRET trong biến môi trường - không được phép chạy với secret mặc định"
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Hàm sinh ID ngẫu nhiên 5 số
 const generateId = async (): Promise<string> => {
@@ -84,13 +89,13 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
   let connection: any = null;
   try {
     const userId = Number(req.params.id);
-    const requesterId = req.user?.id;
-    const isAdmin = req.user?.role === "admin";
 
-    if (!isAdmin && String(requesterId) !== String(userId)) {
+    // Chỉ cho phép tự sửa thông tin của chính mình - tránh IDOR (sửa hồ sơ người khác
+    // chỉ bằng cách đổi :id trên URL). Admin sửa tài khoản khác dùng /api/admin/users/:id riêng.
+    if (String(req.user?.id) !== String(userId)) {
       return res
         .status(403)
-        .json({ message: "Bạn không có quyền cập nhật thông tin người khác" });
+        .json({ message: "Bạn không có quyền sửa thông tin của tài khoản này" });
     }
 
     const {

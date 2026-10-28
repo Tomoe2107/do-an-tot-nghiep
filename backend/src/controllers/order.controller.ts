@@ -4,6 +4,89 @@ import { db } from "../database";
 import { AuthRequest } from "../middlewares/authMiddleware";
 import { addPendingOrder } from "../cron/update.status.automatic";
 
+// ===================== HOÀN TẤT ĐƠN HÀNG KHI ĐÃ XÁC NHẬN THANH TOÁN THẬT =====================
+// Dùng chung cho mọi phương thức thanh toán "chờ xác nhận" (PayPal, Chuyển khoản QR...).
+// Đơn tạo qua checkout()/checkoutDirectly() với các phương thức này KHÔNG hề đụng tới giỏ
+// hàng/tồn kho lúc tạo - GhiChu tạm lưu JSON { SanPhamDaChon | items, GhiChu } để tại đây mới
+// thực sự chuyển sản phẩm từ giỏ sang đơn thật + trừ tồn kho, đúng lúc thanh toán được xác
+// nhận thật sự (PayPal capture COMPLETED, hoặc admin tự tay xác nhận đã nhận chuyển khoản).
+export async function finalizeOrder(MaDonHang: string): Promise<boolean> {
+  const [orderRows]: any = await db.query(
+    "SELECT user_id, GhiChu, TrangThai FROM donhang WHERE MaDonHang = ?",
+    [MaDonHang]
+  );
+  const order = orderRows[0];
+  if (!order) return false;
+
+  // Đã xử lý rồi (vd webhook và FE cùng gọi vào) thì bỏ qua, tránh trừ tồn kho 2 lần.
+  if (order.TrangThai === "Đã xác nhận") return true;
+
+  let stash: any = {};
+  try {
+    stash = JSON.parse(order.GhiChu || "{}");
+  } catch {
+    stash = {};
+  }
+  const directItems = Array.isArray(stash.items) ? stash.items : [];
+  const SanPhamDaChon = Array.isArray(stash.SanPhamDaChon)
+    ? stash.SanPhamDaChon
+    : [];
+
+  if (!directItems.length && !SanPhamDaChon.length) {
+    // Không có gì cần chuyển (đơn không qua giỏ hàng/mua ngay kiểu hoãn) - chỉ đổi trạng thái.
+    await db.query(
+      "UPDATE donhang SET TrangThai = 'Đã xác nhận', NgayCapNhat = NOW() WHERE MaDonHang = ?",
+      [MaDonHang]
+    );
+    return true;
+  }
+
+  const connection = await db.getConnection();
+  await connection.beginTransaction();
+  try {
+    if (directItems.length) {
+      for (const item of directItems) {
+        await connection.query(
+          `INSERT INTO chitietdonhang (MaDonHang, MaSP, SoLuong, GiaBanTaiThoiDiem) VALUES (?, ?, ?, ?)`,
+          [MaDonHang, item.MaSP, item.SoLuong, item.GiaBanTaiThoiDiem]
+        );
+        await connection.query(
+          `UPDATE sanpham SET SoLuongTon = SoLuongTon - ?, DaBan = DaBan + ? WHERE MaSP = ?`,
+          [item.SoLuong, item.SoLuong, item.MaSP]
+        );
+      }
+    } else {
+      const tempOrderId = `CART_${order.user_id}`;
+      const [cartItems]: any = await connection.query(
+        `SELECT MaSP, SoLuong FROM chitietdonhang WHERE MaDonHang = ? AND MaSP IN (?) FOR UPDATE`,
+        [tempOrderId, SanPhamDaChon]
+      );
+      await connection.query(
+        `UPDATE chitietdonhang SET MaDonHang = ? WHERE MaDonHang = ? AND MaSP IN (?)`,
+        [MaDonHang, tempOrderId, SanPhamDaChon]
+      );
+      for (const item of cartItems) {
+        await connection.query(
+          `UPDATE sanpham SET SoLuongTon = SoLuongTon - ?, DaBan = DaBan + ? WHERE MaSP = ?`,
+          [item.SoLuong, item.SoLuong, item.MaSP]
+        );
+      }
+    }
+
+    await connection.query(
+      "UPDATE donhang SET TrangThai = 'Đã xác nhận', GhiChu = ?, NgayCapNhat = NOW() WHERE MaDonHang = ?",
+      [stash.GhiChu || null, MaDonHang]
+    );
+    await connection.commit();
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+  return true;
+}
+
 export const OrderController = {
   // Lấy danh sách đơn hàng
   async getAll(req: AuthRequest, res: Response) {
@@ -106,6 +189,28 @@ export const OrderController = {
       if (!TrangThai)
         return res.status(400).json({ message: "Thiếu trạng thái" });
 
+      // Khách hàng chỉ được: (1) tự huỷ đơn của mình, hoặc (2) tự báo "Chờ xác nhận" (vd bấm
+      // "Đã chuyển khoản - Hoàn tất" trên mã QR) - đây chỉ là LỜI KHAI, không có quyền lực gì,
+      // không trừ kho/không dọn giỏ hàng. Khách KHÔNG được tự đặt "Đã xác nhận" hay các bước
+      // sau - đó là lúc admin xác nhận đã thật sự nhận được tiền/chuyển khoản (có finalizeOrder
+      // lo phần trừ kho + chuyển giỏ hàng sang đơn thật). Nếu không chặn, khách có thể tự gọi
+      // API này để "thanh toán giả" mà không cần trả tiền.
+      const allowedForUser = ["Đã huỷ", "Chờ xác nhận"];
+      if (role !== "admin" && !allowedForUser.includes(TrangThai)) {
+        return res.status(403).json({
+          message:
+            "Bạn chỉ có thể huỷ đơn hoặc báo đã chuyển khoản, việc xác nhận đơn hàng do quản trị viên thực hiện",
+        });
+      }
+
+      if (role === "admin" && TrangThai === "Đã xác nhận") {
+        const finalized = await finalizeOrder(id);
+        if (!finalized)
+          return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+        addPendingOrder(id);
+        return res.json({ message: "Cập nhật trạng thái thành công" });
+      }
+
       const [result]: any = await db.query(
         role === "admin"
           ? "UPDATE donhang SET TrangThai = ? WHERE MaDonHang = ?"
@@ -117,10 +222,6 @@ export const OrderController = {
         return res
           .status(404)
           .json({ message: "Không tìm thấy đơn hàng hoặc bạn không có quyền" });
-
-      if (TrangThai === "Đã xác nhận") {
-        addPendingOrder(id);
-      }
 
       res.json({ message: "Cập nhật trạng thái thành công" });
     } catch (err) {
@@ -200,9 +301,9 @@ export const OrderController = {
       for (const item of cartItems) {
         if (!Number.isInteger(item.SoLuong) || item.SoLuong <= 0) {
           await connection.rollback();
-          return res.status(400).json({
-            message: `Số lượng sản phẩm "${item.TenSP}" không hợp lệ`,
-          });
+          return res
+            .status(400)
+            .json({ message: "Số lượng sản phẩm trong giỏ không hợp lệ" });
         }
         if (item.SoLuongTon < item.SoLuong) {
           await connection.rollback();
@@ -238,41 +339,58 @@ export const OrderController = {
       );
       const TongTien = TongTienSanPham + Number(PhiShip);
 
+      // PayPal: chưa chắc khách đã thật sự trả tiền tại thời điểm bấm "Thanh toán" (họ có
+      // thể huỷ/bấm back ngay trên trang PayPal) - nên KHÔNG được trừ tồn kho hay dọn khỏi
+      // giỏ hàng ở đây. Tạo đơn ở trạng thái "Chờ thanh toán" và giữ nguyên giỏ hàng; việc
+      // trừ tồn kho + chuyển hàng từ giỏ sang đơn thật chỉ thực hiện trong paypalSuccess/
+      // paypalWebhook khi PayPal xác nhận COMPLETED thật sự (xem paypal.controller.ts).
+      const needsPaymentConfirmation = PhuongThucThanhToan === "PayPal" || PhuongThucThanhToan === "Chuyển khoản";
+
       await connection.query(
-        `INSERT INTO donhang 
+        `INSERT INTO donhang
          (MaDonHang, MaKH, user_id, TongTien, TrangThai, PhuongThucThanhToan, DiaChiGiaoHang, GhiChu, NgayDat, KhoangCach, PhiShip)
-         VALUES (?, ?, ?, ?, 'Chờ xác nhận', ?, ?, ?, NOW(), ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
         [
           MaDonHang,
           MaKH,
           user_id,
           TongTien,
+          needsPaymentConfirmation ? "Chờ thanh toán" : "Chờ xác nhận",
           PhuongThucThanhToan,
           DiaChiGiaoHang,
-          GhiChu || null,
+          needsPaymentConfirmation
+            ? JSON.stringify({ SanPhamDaChon, GhiChu: GhiChu || null })
+            : GhiChu || null,
           KhoangCach || null,
           PhiShip,
         ]
       );
 
-      await connection.query(
-        `UPDATE chitietdonhang 
-         SET MaDonHang = ? 
-         WHERE MaDonHang = ? AND MaSP IN (?)`,
-        [MaDonHang, tempOrderId, SanPhamDaChon]
-      );
-
-      for (const item of cartItems) {
+      if (!needsPaymentConfirmation) {
         await connection.query(
-          `UPDATE sanpham 
-           SET SoLuongTon = SoLuongTon - ?, DaBan = DaBan + ? 
-           WHERE MaSP = ?`,
-          [item.SoLuong, item.SoLuong, item.MaSP]
+          `UPDATE chitietdonhang
+           SET MaDonHang = ?
+           WHERE MaDonHang = ? AND MaSP IN (?)`,
+          [MaDonHang, tempOrderId, SanPhamDaChon]
         );
+
+        for (const item of cartItems) {
+          await connection.query(
+            `UPDATE sanpham
+             SET SoLuongTon = SoLuongTon - ?, DaBan = DaBan + ?
+             WHERE MaSP = ?`,
+            [item.SoLuong, item.SoLuong, item.MaSP]
+          );
+        }
       }
 
       await connection.commit();
-      res.status(201).json({ message: "Thanh toán thành công!", MaDonHang });
+      res.status(201).json({
+        message: needsPaymentConfirmation
+          ? "Đã tạo đơn, đang chờ xác nhận thanh toán PayPal"
+          : "Thanh toán thành công!",
+        MaDonHang,
+      });
     } catch (err) {
       await connection.rollback();
       console.error("Lỗi checkout:", err);
@@ -370,15 +488,14 @@ export const OrderController = {
       }
 
       for (const item of items) {
-        const product = products.find((p: any) => p.MaSP === item.MaSP);
         if (!Number.isInteger(item.SoLuong) || item.SoLuong <= 0) {
           await connection.rollback();
-          return res.status(400).json({
-            message: `Số lượng sản phẩm "${
-              product?.TenSP || item.MaSP
-            }" không hợp lệ`,
-          });
+          return res
+            .status(400)
+            .json({ message: "Số lượng sản phẩm phải là số nguyên dương" });
         }
+
+        const product = products.find((p: any) => p.MaSP === item.MaSP);
         if (!product || product.SoLuongTon < item.SoLuong) {
           await connection.rollback();
           return res.status(400).json({
@@ -409,44 +526,55 @@ export const OrderController = {
       );
       const TongTien = TongTienSanPham + Number(PhiShip);
 
+      // PayPal: chưa chắc khách đã trả tiền thật lúc bấm "Mua ngay" (có thể huỷ/back ở trang
+      // PayPal) - không được trừ tồn kho ngay. Tạo đơn "Chờ thanh toán", lưu tạm danh sách
+      // sản phẩm để finalizePaypalOrder() trong paypal.controller.ts tạo chi tiết đơn + trừ
+      // tồn kho khi PayPal xác nhận COMPLETED thật sự.
+      const needsPaymentConfirmation = PhuongThucThanhToan === "PayPal" || PhuongThucThanhToan === "Chuyển khoản";
+
       await connection.query(
-        `INSERT INTO donhang 
+        `INSERT INTO donhang
          (MaDonHang, MaKH, user_id, TongTien, TrangThai, PhuongThucThanhToan, DiaChiGiaoHang, GhiChu, NgayDat, KhoangCach, PhiShip)
-         VALUES (?, ?, ?, ?, 'Chờ xác nhận', ?, ?, ?, NOW(), ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
         [
           MaDonHang,
           MaKH,
           user_id,
           TongTien,
+          needsPaymentConfirmation ? "Chờ thanh toán" : "Chờ xác nhận",
           PhuongThucThanhToan,
           DiaChiGiaoHang,
-          GhiChu || null,
+          needsPaymentConfirmation ? JSON.stringify({ items, GhiChu: GhiChu || null }) : GhiChu || null,
           KhoangCach || null,
           PhiShip,
         ]
       );
 
-      for (const item of items) {
-        await connection.query(
-          `INSERT INTO chitietdonhang 
-           (MaDonHang, MaSP, SoLuong, GiaBanTaiThoiDiem) 
-           VALUES (?, ?, ?, ?)`,
-          [MaDonHang, item.MaSP, item.SoLuong, item.GiaBanTaiThoiDiem]
-        );
-      }
+      if (!needsPaymentConfirmation) {
+        for (const item of items) {
+          await connection.query(
+            `INSERT INTO chitietdonhang
+             (MaDonHang, MaSP, SoLuong, GiaBanTaiThoiDiem)
+             VALUES (?, ?, ?, ?)`,
+            [MaDonHang, item.MaSP, item.SoLuong, item.GiaBanTaiThoiDiem]
+          );
+        }
 
-      for (const item of items) {
-        await connection.query(
-          `UPDATE sanpham 
-           SET SoLuongTon = SoLuongTon - ?, DaBan = DaBan + ? 
-           WHERE MaSP = ?`,
-          [item.SoLuong, item.SoLuong, item.MaSP]
-        );
+        for (const item of items) {
+          await connection.query(
+            `UPDATE sanpham
+             SET SoLuongTon = SoLuongTon - ?, DaBan = DaBan + ?
+             WHERE MaSP = ?`,
+            [item.SoLuong, item.SoLuong, item.MaSP]
+          );
+        }
       }
 
       await connection.commit();
       res.status(201).json({
-        message: "Thanh toán trực tiếp thành công!",
+        message: needsPaymentConfirmation
+          ? "Đã tạo đơn, đang chờ xác nhận thanh toán PayPal"
+          : "Thanh toán trực tiếp thành công!",
         MaDonHang,
       });
     } catch (err: any) {
