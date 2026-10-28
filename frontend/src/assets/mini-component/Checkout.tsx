@@ -115,6 +115,12 @@ export default function Checkout() {
   const [qrModalData, setQrModalData] = useState<QrModalData | null>(null);
   const [copiedField, setCopiedField] = useState<string>("");
   const [completingPayment, setCompletingPayment] = useState(false); // Loading nút hoàn tất
+  // Đếm ngược thời gian chờ quét QR - khớp với PAYMENT_TIMEOUT_MINUTES (5 phút) bên backend,
+  // nơi cron tự động đánh "Thanh toán thất bại" cho đơn "Chờ thanh toán" quá hạn. Dừng đếm
+  // sau khi khách bấm "Đã chuyển khoản" (completingPayment) vì lúc đó đơn đã sang "Chờ xác
+  // nhận", không còn bị cron này tự huỷ nữa - chỉ còn chờ admin duyệt.
+  const QR_TIMEOUT_SECONDS = 5 * 60;
+  const [qrSecondsLeft, setQrSecondsLeft] = useState(QR_TIMEOUT_SECONDS);
 
   const navigate = useNavigate();
   const isCheckingRef = useRef(false);
@@ -145,6 +151,14 @@ export default function Checkout() {
           localStorage.removeItem("cart_checkout");
           setIsQrModalOpen(false);
           navigate(`/orders/success/${qrModalData.MaDonHang}`);
+        } else if (order.TrangThai === "Thanh toán thất bại") {
+          // Backend tự động đánh dấu khi đơn ở "Chờ thanh toán" quá 5 phút mà khách
+          // chưa báo đã chuyển khoản (xem cron update.status.automatic.ts)
+          showError(
+            "Thanh toán thất bại! Bạn chưa hoàn tất chuyển khoản trong thời gian cho phép (5 phút). Vui lòng đặt lại đơn hàng."
+          );
+          setIsQrModalOpen(false);
+          setCompletingPayment(false);
         }
       } catch (err) {
         console.error("Lỗi kiểm tra đơn hàng:", err);
@@ -160,6 +174,27 @@ export default function Checkout() {
       clearInterval(interval);
     };
   }, [isQrModalOpen, qrModalData, navigate]);
+
+  /* ========================================================================== */
+  /*  ĐẾM NGƯỢC THỜI GIAN CHỜ QUÉT QR (5 PHÚT, KHỚP VỚI BACKEND)                */
+  /* ========================================================================== */
+  useEffect(() => {
+    if (!isQrModalOpen || !qrModalData) return;
+
+    setQrSecondsLeft(QR_TIMEOUT_SECONDS);
+    const timer = setInterval(() => {
+      setQrSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isQrModalOpen, qrModalData?.MaDonHang]);
+
+  const formatQrCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   /* ========================================================================== */
   /*  1. LOAD CART – SIÊU SẠCH                                                  */
@@ -1243,33 +1278,18 @@ export default function Checkout() {
                   setCompletingPayment(true);
 
                   try {
-                    // Bước 1: User báo → trạng thái = Chờ xác nhận
+                    // Khách tự báo "đã chuyển khoản" → trạng thái = Chờ xác nhận.
+                    // Đây chỉ là LỜI KHAI, chưa trừ kho/chưa hoàn tất đơn - admin phải vào
+                    // trang quản trị xác nhận thật sự nhận được tiền (bấm "Đã xác nhận") thì
+                    // đơn mới hoàn tất; effect polling ở trên sẽ tự phát hiện và chuyển trang
+                    // khi admin xác nhận xong. Không tự ý giả lập xác nhận ở FE.
                     await updateOrderStatus(
                       qrModalData.MaDonHang,
                       "Chờ xác nhận"
                     );
-                    showSuccess("Đã báo chuyển khoản!");
-
-                    // Bước 2: Tự động xác nhận sau 20 giây (nếu admin không hủy)
-                    setTimeout(async () => {
-                      try {
-                        const order = await getOrderById(qrModalData.MaDonHang);
-                        if (order.TrangThai === "Chờ xác nhận") {
-                          await updateOrderStatus(
-                            qrModalData.MaDonHang,
-                            "Đã xác nhận"
-                          );
-                          showSuccess(
-                            "Thanh toán thành công! Đơn hàng đã được xác nhận tự động."
-                          );
-                          localStorage.removeItem("cart_checkout");
-                          setIsQrModalOpen(false);
-                          navigate(`/orders/success/${qrModalData.MaDonHang}`);
-                        }
-                      } catch (err) {
-                        console.error("Lỗi tự động xác nhận:", err);
-                      }
-                    }, 20000);
+                    showSuccess(
+                      "Đã ghi nhận! Vui lòng chờ shop xác nhận giao dịch."
+                    );
                   } catch (err: any) {
                     if (
                       err.response?.status === 401 ||
@@ -1323,6 +1343,15 @@ export default function Checkout() {
                   ? "Vui lòng chờ hệ thống xác nhận giao dịch... Đừng thoát!"
                   : "Nhấn khi bạn đã chuyển khoản chính xác"}
               </p>
+              {!completingPayment && (
+                <p
+                  className={`text-sm mt-2 font-medium ${
+                    qrSecondsLeft <= 60 ? "text-red-600" : "text-gray-500"
+                  }`}
+                >
+                  Mã QR hết hạn sau: {formatQrCountdown(qrSecondsLeft)}
+                </p>
+              )}
             </div>
           </div>
         </div>
