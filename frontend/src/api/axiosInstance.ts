@@ -58,11 +58,12 @@ api.interceptors.response.use(
       window.location.href = "/login";
     }
 
-    // 👉 Token không hợp lệ
+    // 👉 Token không hợp lệ (CHỈ khi backend thực sự báo lỗi token, không phải
+    // mọi lỗi 403 - vd lỗi phân quyền "Bạn không có quyền..." cũng trả 403 nhưng
+    // token vẫn hợp lệ, không nên bị tự đăng xuất)
     else if (
-      status === 403 ||
-      msg.includes("invalid") ||
-      msg.includes("token không hợp lệ")
+      status === 403 &&
+      (msg.includes("invalid") || msg.includes("token không hợp lệ"))
     ) {
       toast.dismiss();
       toast.error("🚫 Token không hợp lệ, vui lòng đăng nhập lại!", {
