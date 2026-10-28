@@ -1,13 +1,14 @@
 // src/controllers/productReview.controller.ts
 
-import { Request, Response } from "express";
+import { Response } from "express";
 import { db } from "../database";
-import { ProductReview } from "../model/products.review.model";
+import { AuthRequest } from "../middlewares/authMiddleware";
+import { stripHtml } from "../utils/sanitize";
 
 // ============================
 // 1. Thêm đánh giá
 // ============================
-export const createReview = async (req: Request, res: Response) => {
+export const createReview = async (req: AuthRequest, res: Response) => {
   try {
     const { MaSP, user_id, rating, comment } = req.body;
 
@@ -30,7 +31,7 @@ export const createReview = async (req: Request, res: Response) => {
         MaSP,
         user_id,
         rating,
-        comment || "",
+        comment ? stripHtml(String(comment)) : "",
         JSON.stringify(userAvatar ? [userAvatar] : []),
       ]
     );
@@ -45,7 +46,7 @@ export const createReview = async (req: Request, res: Response) => {
 // ============================
 // 2. Lấy đánh giá theo sản phẩm
 // ============================
-export const getReviewsByProduct = async (req: Request, res: Response) => {
+export const getReviewsByProduct = async (req: AuthRequest, res: Response) => {
   try {
     const { MaSP } = req.params;
 
@@ -66,18 +67,38 @@ export const getReviewsByProduct = async (req: Request, res: Response) => {
 };
 
 // ============================
-// 3. Cập nhật đánh giá
+// 3. Cập nhật đánh giá - chỉ chủ đánh giá hoặc admin
 // ============================
-export const updateReview = async (req: Request, res: Response) => {
+export const updateReview = async (req: AuthRequest, res: Response) => {
   try {
     const { reviewId } = req.params;
     const { rating, comment, images } = req.body;
+    const requesterId = req.user?.id;
+    const isAdmin = req.user?.role === "admin";
+
+    const [rows]: any = await db.execute(
+      `SELECT user_id FROM danhgiasanpham WHERE id = ?`,
+      [reviewId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ message: "Không tìm thấy đánh giá" });
+    }
+    if (!isAdmin && String(rows[0].user_id) !== String(requesterId)) {
+      return res
+        .status(403)
+        .json({ message: "Bạn không có quyền sửa đánh giá này" });
+    }
 
     await db.execute(
       `UPDATE danhgiasanpham
        SET rating = ?, comment = ?, images = ?
        WHERE id = ?`,
-      [rating, comment, JSON.stringify(images || []), reviewId]
+      [
+        rating,
+        comment != null ? stripHtml(String(comment)) : comment,
+        JSON.stringify(images || []),
+        reviewId,
+      ]
     );
 
     return res.status(200).json({ message: "Cập nhật đánh giá thành công!" });
@@ -88,11 +109,26 @@ export const updateReview = async (req: Request, res: Response) => {
 };
 
 // ============================
-// 4. Xóa đánh giá
+// 4. Xóa đánh giá - chỉ chủ đánh giá hoặc admin
 // ============================
-export const deleteReview = async (req: Request, res: Response) => {
+export const deleteReview = async (req: AuthRequest, res: Response) => {
   try {
     const { reviewId } = req.params;
+    const requesterId = req.user?.id;
+    const isAdmin = req.user?.role === "admin";
+
+    const [rows]: any = await db.execute(
+      `SELECT user_id FROM danhgiasanpham WHERE id = ?`,
+      [reviewId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ message: "Không tìm thấy đánh giá" });
+    }
+    if (!isAdmin && String(rows[0].user_id) !== String(requesterId)) {
+      return res
+        .status(403)
+        .json({ message: "Bạn không có quyền xoá đánh giá này" });
+    }
 
     await db.execute(`DELETE FROM danhgiasanpham WHERE id = ?`, [reviewId]);
 
@@ -106,12 +142,12 @@ export const deleteReview = async (req: Request, res: Response) => {
 // ============================
 // 5. Lấy điểm trung bình và tổng lượt đánh giá
 // ============================
-export const getAverageRating = async (req: Request, res: Response) => {
+export const getAverageRating = async (req: AuthRequest, res: Response) => {
   try {
     const { MaSP } = req.params;
 
     const [rows]: any = await db.execute(
-      `SELECT 
+      `SELECT
           AVG(rating) AS average_rating,
           COUNT(*) AS total_reviews
        FROM danhgiasanpham

@@ -16,7 +16,7 @@ router.post("/", authMiddleware, createReview); // Thêm đánh giá
 router.get("/:MaSP", getReviewsByProduct); // Lấy đánh giá theo sản phẩm
 router.get("/average/:MaSP", getAverageRating);
 
-router.put("/:reviewId", updateReview); // Cập nhật đánh giá
-router.delete("/:reviewId", deleteReview); // Xóa đánh giá
+router.put("/:reviewId", authMiddleware, updateReview); // Cập nhật đánh giá - chỉ chủ đánh giá/admin
+router.delete("/:reviewId", authMiddleware, deleteReview); // Xóa đánh giá - chỉ chủ đánh giá/admin
 
 export default router;

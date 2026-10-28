@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../database";
+import { stripHtml } from "../utils/sanitize";
 
 export const FeedbackController = {
   // 📝 Gửi đánh giá
@@ -14,10 +15,16 @@ export const FeedbackController = {
       if (!rating || !comment)
         return res.status(400).json({ message: "Thiếu dữ liệu đánh giá" });
 
-      const sql = `INSERT INTO feedback (user_id, rating, comment) VALUES (?, ?, ?)`;
-      console.log("📌 Executing SQL:", sql, [user_id, rating, comment]);
+      const cleanComment = stripHtml(String(comment));
 
-      const [result]: any = await db.execute(sql, [user_id, rating, comment]);
+      const sql = `INSERT INTO feedback (user_id, rating, comment) VALUES (?, ?, ?)`;
+      console.log("📌 Executing SQL:", sql, [user_id, rating, cleanComment]);
+
+      const [result]: any = await db.execute(sql, [
+        user_id,
+        rating,
+        cleanComment,
+      ]);
 
       console.log("✅ feedback created:", {
         review_id: result.insertId,
