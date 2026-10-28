@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/button";
 import { getSanPhamById } from "@/api/product";
 import { getProfile } from "@/api/get-profile";
@@ -486,7 +487,9 @@ export default function ProductDetail() {
               <div
                 className="text-gray-700 leading-relaxed text-justify prose prose-sm max-w-none [&_*:not(a)]:!text-gray-900 [&_a]:!text-blue-600 [&_a]:!underline [&_a]:!font-medium"
                 dangerouslySetInnerHTML={{
-                  __html: product.MoTa || "Chưa có mô tả cho sản phẩm này.",
+                  __html: DOMPurify.sanitize(
+                    product.MoTa || "Chưa có mô tả cho sản phẩm này."
+                  ),
                 }}
               />
             </div>
