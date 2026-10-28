@@ -94,15 +94,14 @@ export default function Map({
     fixCSS();
 
     const map = L.map(mapRef.current).setView([lat, lng], zoom);
-    // Dùng tile của CARTO thay vì tile.openstreetmap.org trực tiếp - server tile miễn phí
-    // của OSM chỉ dành cho dev/test, không cho phép dùng trên web production (hay bị chặn/
-    // trả về rỗng khi lưu lượng thật), trong khi CARTO cho phép dùng free kèm ghi nguồn.
+    // Dùng tile của Esri/ArcGIS - miễn phí, không cần đăng ký API key, cho phép dùng
+    // trên web production. Đã thử tile.openstreetmap.org (chặn production) và CARTO
+    // (giờ bắt buộc API key) nhưng cả 2 đều không dùng được miễn phí nữa.
     L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
       {
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: "abcd",
+          "Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ",
         maxZoom: 19,
       }
     ).addTo(map);
