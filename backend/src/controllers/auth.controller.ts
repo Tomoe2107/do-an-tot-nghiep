@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../database";
 import { User } from "../model/user.model";
+import { AuthRequest } from "../middlewares/authMiddleware";
 import dotenv from "dotenv";
 import crypto from "crypto"; // Làm chức năng quên mật khẩu
 import nodemailer from "nodemailer"; // // Làm chức năng quên mật khẩu
@@ -79,10 +80,19 @@ export const getProfile = async (req: any, res: Response) => {
 };
 
 // Cập nhật thông tin khách hàng (auto INSERT nếu thiếu KhachHang)
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: AuthRequest, res: Response) => {
   let connection: any = null;
   try {
     const userId = Number(req.params.id);
+    const requesterId = req.user?.id;
+    const isAdmin = req.user?.role === "admin";
+
+    if (!isAdmin && String(requesterId) !== String(userId)) {
+      return res
+        .status(403)
+        .json({ message: "Bạn không có quyền cập nhật thông tin người khác" });
+    }
+
     const {
       SoDienThoai,
       DiaChiChiTiet,
