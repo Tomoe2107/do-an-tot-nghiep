@@ -6,7 +6,12 @@ import {
   formatProductReply,
 } from "../services/product-search.service";
 
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "Thiếu JWT_SECRET trong biến môi trường - không được phép chạy với secret mặc định"
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Chat cho cả khách lẫn người đã đăng nhập nên không bắt buộc Bearer token
 // như authMiddleware - có thì giải mã lấy user_id để webhook tra đơn hàng dùng, không có thì bỏ qua.

@@ -4,7 +4,12 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "Thiếu JWT_SECRET trong biến môi trường - không được phép chạy với secret mặc định"
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export interface AuthRequest extends Request {
   user?: JwtPayload & { id?: number; username?: string }; // tiện lấy id

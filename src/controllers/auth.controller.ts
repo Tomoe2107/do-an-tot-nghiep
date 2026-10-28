@@ -3,13 +3,19 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../database";
 import { User } from "../model/user.model";
+import { AuthRequest } from "../middlewares/authMiddleware";
 import dotenv from "dotenv";
 import crypto from "crypto"; // Làm chức năng quên mật khẩu
 import nodemailer from "nodemailer"; // // Làm chức năng quên mật khẩu
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || "defaultsecret";
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "Thiếu JWT_SECRET trong biến môi trường - không được phép chạy với secret mặc định"
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Hàm sinh ID ngẫu nhiên 5 số
 const generateId = async (): Promise<string> => {
@@ -79,10 +85,19 @@ export const getProfile = async (req: any, res: Response) => {
 };
 
 // Cập nhật thông tin khách hàng (auto INSERT nếu thiếu KhachHang)
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: AuthRequest, res: Response) => {
   let connection: any = null;
   try {
     const userId = Number(req.params.id);
+
+    // Chỉ cho phép tự sửa thông tin của chính mình - tránh IDOR (sửa hồ sơ người khác
+    // chỉ bằng cách đổi :id trên URL). Admin sửa tài khoản khác dùng /api/admin/users/:id riêng.
+    if (String(req.user?.id) !== String(userId)) {
+      return res
+        .status(403)
+        .json({ message: "Bạn không có quyền sửa thông tin của tài khoản này" });
+    }
+
     const {
       SoDienThoai,
       DiaChiChiTiet,
