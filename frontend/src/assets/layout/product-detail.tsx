@@ -114,6 +114,11 @@ export default function ProductDetail() {
       return;
     }
 
+    if (quantity > (product.SoLuongTon ?? 0)) {
+      showError(`Chỉ còn ${product.SoLuongTon} sản phẩm trong kho!`);
+      return;
+    }
+
     try {
       // GỌI API THÊM GIỎ (chỉ để backend biết)
       await addProductToCart({
@@ -402,12 +407,20 @@ export default function ProductDetail() {
                       className="w-16 text-center py-2 border-x text-lg font-medium focus:outline-none"
                     />
                     <button
-                      onClick={() => setQuantity((prev) => prev + 1)}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-lg font-bold"
+                      onClick={() =>
+                        setQuantity((prev) =>
+                          Math.min(product.SoLuongTon ?? 0, prev + 1)
+                        )
+                      }
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-lg font-bold disabled:opacity-50"
+                      disabled={quantity >= (product.SoLuongTon ?? 0)}
                     >
                       +
                     </button>
                   </div>
+                  <span className="text-xs text-gray-500">
+                    Còn {product.SoLuongTon ?? 0} sản phẩm trong kho
+                  </span>
                 </div>
 
                 <Button
@@ -430,6 +443,12 @@ export default function ProductDetail() {
                     }
                     if (product.SoLuongTon === 0) {
                       showError("Sản phẩm đã hết hàng!");
+                      return;
+                    }
+                    if (quantity > (product.SoLuongTon ?? 0)) {
+                      showError(
+                        `Chỉ còn ${product.SoLuongTon} sản phẩm trong kho!`
+                      );
                       return;
                     }
                     localStorage.removeItem("cart_checkout");
