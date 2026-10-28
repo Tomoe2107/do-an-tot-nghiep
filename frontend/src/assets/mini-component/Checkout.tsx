@@ -122,6 +122,14 @@ export default function Checkout() {
   const QR_TIMEOUT_SECONDS = 5 * 60;
   const [qrSecondsLeft, setQrSecondsLeft] = useState(QR_TIMEOUT_SECONDS);
   const [isPaymentTimeoutOpen, setIsPaymentTimeoutOpen] = useState(false);
+  // Sau khi khách bấm "Đã chuyển khoản", chờ shop (admin) xác nhận thật sự nhận được
+  // tiền tối đa 1 phút - quá thời gian mà vẫn chưa thấy "Đã xác nhận" thì báo thất
+  // bại, đề nghị khách liên hệ shop kiểm tra thay vì chờ vô thời hạn.
+  const CONFIRM_TIMEOUT_SECONDS = 60;
+  const [confirmSecondsLeft, setConfirmSecondsLeft] = useState(
+    CONFIRM_TIMEOUT_SECONDS
+  );
+  const [isConfirmTimeoutOpen, setIsConfirmTimeoutOpen] = useState(false);
 
   const navigate = useNavigate();
   const isCheckingRef = useRef(false);
@@ -205,6 +213,29 @@ export default function Checkout() {
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
+
+  /* ========================================================================== */
+  /*  ĐẾM NGƯỢC 1 PHÚT CHỜ SHOP XÁC NHẬN SAU KHI KHÁCH BÁO ĐÃ CHUYỂN KHOẢN      */
+  /* ========================================================================== */
+  useEffect(() => {
+    if (!completingPayment) {
+      setConfirmSecondsLeft(CONFIRM_TIMEOUT_SECONDS);
+      return;
+    }
+
+    setIsConfirmTimeoutOpen(false);
+    const timer = setInterval(() => {
+      setConfirmSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completingPayment]);
+
+  useEffect(() => {
+    if (confirmSecondsLeft > 0 || !completingPayment) return;
+    setIsConfirmTimeoutOpen(true);
+  }, [confirmSecondsLeft, completingPayment]);
 
   /* ========================================================================== */
   /*  1. LOAD CART – SIÊU SẠCH                                                  */
@@ -1262,6 +1293,44 @@ export default function Checkout() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog thanh toán thất bại - shop chưa xác nhận sau 1 phút kể từ khi khách báo chuyển khoản */}
+      <Dialog
+        open={isConfirmTimeoutOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsConfirmTimeoutOpen(false);
+            setCompletingPayment(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex justify-center items-center gap-2">
+              <span className="text-3xl">Thanh toán thất bại!</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-6 text-center space-y-4">
+            <p className="text-lg whitespace-pre-line leading-relaxed">
+              Hệ thống chưa nhận được xác nhận thanh toán từ shop. Đề nghị bạn
+              liên hệ với shop để được kiểm tra lại giao dịch.
+            </p>
+
+            <div className="flex flex-col gap-3 mt-6">
+              <Button
+                onClick={() => {
+                  setIsConfirmTimeoutOpen(false);
+                  setCompletingPayment(false);
+                }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Tôi hiểu rồi
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* MODAL QR - CHỈ ĐÓNG KHI ĐÃ XÁC NHẬN */}
       {isQrModalOpen && qrModalData && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -1398,6 +1467,15 @@ export default function Checkout() {
                   }`}
                 >
                   Mã QR hết hạn sau: {formatQrCountdown(qrSecondsLeft)}
+                </p>
+              )}
+              {completingPayment && (
+                <p
+                  className={`text-sm mt-2 font-medium ${
+                    confirmSecondsLeft <= 15 ? "text-red-600" : "text-gray-500"
+                  }`}
+                >
+                  Tự động báo thất bại sau: {formatQrCountdown(confirmSecondsLeft)}
                 </p>
               )}
             </div>
