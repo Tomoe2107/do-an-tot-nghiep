@@ -49,7 +49,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       html: `Mật khẩu tạm thời (hiệu lực 15 phút): <strong>${tempPassword}</strong><br><br>
          Dùng mật khẩu này tại trang đặt lại mật khẩu để đổi sang mật khẩu mới.<br>
          Nếu bạn không yêu cầu đổi mật khẩu, hãy bỏ qua email này.<br>
-         <a href="https://dacsanbamien.shop/login">Đăng nhập tại đây</a>`,
+         <a href="https://vuthuyhien.id.vn/login">Đăng nhập tại đây</a>`,
       replyTo: email,
     });
 

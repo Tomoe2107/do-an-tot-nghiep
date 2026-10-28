@@ -47,8 +47,12 @@ app.use(
         "https://regional-specialties.vercel.app",
         "https://vuthuyhien.id.vn",
         "https://www.vuthuyhien.id.vn",
+        "https://frontend-pink-two-21.vercel.app",
       ];
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Cho phép mọi domain *.vercel.app của project "frontend" (gồm cả URL
+      // production ổn định lẫn các URL preview đổi mỗi lần deploy)
+      const isVercelPreview = origin && /^https:\/\/frontend-[a-z0-9]+-tomoe5\.vercel\.app$/.test(origin);
+      if (!origin || allowedOrigins.includes(origin) || isVercelPreview) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -176,7 +180,7 @@ app.use(
   },
   uploadAvatarRouter
 );
-app.use("/avatars", express.static(path.join(__dirname, "../public/avatars")));
+app.use("/avatars", express.static(path.join(__dirname, "../upload/avatars")));
 
 app.use(
   "/api/feedback",
