@@ -121,6 +121,7 @@ export default function Checkout() {
   // nhận", không còn bị cron này tự huỷ nữa - chỉ còn chờ admin duyệt.
   const QR_TIMEOUT_SECONDS = 5 * 60;
   const [qrSecondsLeft, setQrSecondsLeft] = useState(QR_TIMEOUT_SECONDS);
+  const [isPaymentTimeoutOpen, setIsPaymentTimeoutOpen] = useState(false);
 
   const navigate = useNavigate();
   const isCheckingRef = useRef(false);
@@ -182,6 +183,7 @@ export default function Checkout() {
     if (!isQrModalOpen || !qrModalData) return;
 
     setQrSecondsLeft(QR_TIMEOUT_SECONDS);
+    setIsPaymentTimeoutOpen(false);
     const timer = setInterval(() => {
       setQrSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
@@ -189,6 +191,14 @@ export default function Checkout() {
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isQrModalOpen, qrModalData?.MaDonHang]);
+
+  // Hết 5 phút mà khách chưa bấm "Đã chuyển khoản" - báo ngay ở FE (không chờ cron
+  // backend chạy mỗi phút mới phát hiện ra). Nếu khách đã bấm báo chuyển khoản rồi
+  // (completingPayment) thì không còn tính là "chưa quét QR" nữa, bỏ qua.
+  useEffect(() => {
+    if (qrSecondsLeft > 0 || !isQrModalOpen || completingPayment) return;
+    setIsPaymentTimeoutOpen(true);
+  }, [qrSecondsLeft, isQrModalOpen, completingPayment]);
 
   const formatQrCountdown = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -1205,6 +1215,44 @@ export default function Checkout() {
             <div className="flex flex-col gap-3 mt-6">
               <Button
                 onClick={() => setDistanceError(null)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Tôi hiểu rồi
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog hết hạn thanh toán QR - chưa quét/chưa báo chuyển khoản trong 5 phút */}
+      <Dialog
+        open={isPaymentTimeoutOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsPaymentTimeoutOpen(false);
+            setIsQrModalOpen(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex justify-center items-center gap-2">
+              <span className="text-3xl">Hết thời gian thanh toán!</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-6 text-center space-y-4">
+            <p className="text-lg whitespace-pre-line leading-relaxed">
+              Bạn chưa quét mã QR hoặc chưa bấm "Đã chuyển khoản" trong vòng 5
+              phút. Đơn hàng đã bị huỷ. Vui lòng thanh toán lại.
+            </p>
+
+            <div className="flex flex-col gap-3 mt-6">
+              <Button
+                onClick={() => {
+                  setIsPaymentTimeoutOpen(false);
+                  setIsQrModalOpen(false);
+                }}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 Tôi hiểu rồi
