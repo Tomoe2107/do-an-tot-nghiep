@@ -26,7 +26,7 @@ const fixCSS = () => {
 };
 
 // === REVERSE GEOCODE ===
-const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+export const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
   const cacheKey = `addr_${lat.toFixed(6)}_${lng.toFixed(6)}`;
   const cached = sessionStorage.getItem(cacheKey);
   if (cached) return cached;

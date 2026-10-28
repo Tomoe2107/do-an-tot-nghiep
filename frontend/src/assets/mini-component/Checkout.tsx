@@ -22,7 +22,7 @@ import {
   updateOrderStatus,
 } from "@/api/order";
 import { createPayPalPayment } from "@/api/payment";
-import Map from "@/assets/small-function/google-map";
+import Map, { reverseGeocode } from "@/assets/small-function/google-map";
 import { buildFullAddressForCenter } from "@/utils/address"; // Tự động nhảy đến tọa độ địa chỉ chính xác của bạn
 import { geocodeAddress } from "@/utils/geocode";
 import {
@@ -907,6 +907,11 @@ export default function Checkout() {
                           Latitude: latitude,
                           Longitude: longitude,
                         });
+                        const address = await reverseGeocode(
+                          latitude,
+                          longitude
+                        );
+                        setCustomer((prev) => ({ ...prev, address }));
                         showSuccess("Cập nhật vị trí thành công!");
                       } catch (err: any) {
                         const msg = err.message || "Lỗi cập nhật";
