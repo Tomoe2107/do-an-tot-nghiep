@@ -9,11 +9,12 @@ export const getAllSanPham = async (req: Request, res: Response) => {
     const { vungmien, loaidan, keyword, xuatxu, minPrice, maxPrice, sort } =
       req.query;
 
+    // Endpoint công khai (không cần đăng nhập) - chỉ trả tên người đăng để hiển thị, KHÔNG
+    // được JOIN/trả số điện thoại hay địa chỉ nhà (dữ liệu cá nhân trong bảng khachhang),
+    // tránh lộ thông tin liên hệ riêng tư của người bán cho bất kỳ ai xem danh sách sản phẩm.
     let sql = `
       SELECT sp.*,
              u.fullname AS NguoiDang,
-             kh.SoDienThoai,
-             kh.DiaChiDayDu,
              CASE
                WHEN sp.Voucher IS NOT NULL AND sp.Voucher != ''
                THEN ROUND(sp.GiaBan * (100 - CAST(REPLACE(sp.Voucher, '%', '') AS DECIMAL(5,2))) / 100, 2)
@@ -21,7 +22,6 @@ export const getAllSanPham = async (req: Request, res: Response) => {
              END AS GiaSauGiam
       FROM sanpham sp
       JOIN users u ON sp.user_id = u.id
-      LEFT JOIN khachhang kh ON kh.user_id = u.id
       WHERE sp.is_deleted = 0
     `;
 
@@ -83,20 +83,18 @@ export const getAllSanPham = async (req: Request, res: Response) => {
 export const getSanPhamById = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
+    // Endpoint công khai - cùng lý do như getAllSanPham, không trả SĐT/địa chỉ nhà người đăng.
     const [rows]: any = await db.query(
       `
-       SELECT sp.*, 
-              u.fullname AS NguoiDang, 
-              kh.SoDienThoai, 
-              kh.DiaChiDayDu,
-              CASE 
-                WHEN sp.Voucher IS NOT NULL AND sp.Voucher != '' 
+       SELECT sp.*,
+              u.fullname AS NguoiDang,
+              CASE
+                WHEN sp.Voucher IS NOT NULL AND sp.Voucher != ''
                 THEN ROUND(sp.GiaBan * (100 - CAST(REPLACE(sp.Voucher, '%', '') AS DECIMAL(5,2))) / 100, 2)
-                ELSE sp.GiaBan 
+                ELSE sp.GiaBan
               END AS GiaSauGiam
        FROM sanpham sp
        JOIN users u ON sp.user_id = u.id
-       LEFT JOIN khachhang kh ON kh.user_id = u.id
        WHERE sp.MaSP = ? AND sp.is_deleted = 0
       `,
       [id]
