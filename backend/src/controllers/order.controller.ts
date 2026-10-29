@@ -189,14 +189,26 @@ export const OrderController = {
       if (!TrangThai)
         return res.status(400).json({ message: "Thiếu trạng thái" });
 
+      // Chuẩn hoá chuỗi trạng thái - tiếng Việt có nhiều cách gõ dấu hợp lệ cho cùng 1 từ
+      // (vd "huỷ" dấu trên y / "hủy" dấu trên u), so sánh tuyệt đối rất dễ lệch giữa FE/BE
+      // (đã lệch 2 lần rồi). Dùng hàm chuẩn hoá để nhận diện đúng ý định bất kể FE gõ dấu
+      // kiểu nào, đồng thời LUÔN ghi giá trị chuẩn (đúng theo enum trong model) vào DB,
+      // không ghi thẳng chuỗi thô của client - tránh DB có nhiều biến thể của cùng 1 trạng thái.
+      const normalize = (s: string) =>
+        s.trim().toLowerCase().normalize("NFC").replace(/\s+/g, " ");
+      const CANCEL_ALIASES = ["đã hủy", "đã huỷ", "hủy", "huỷ", "huỷ đơn", "hủy đơn"];
+      const CLAIM_ALIASES = ["chờ xác nhận"];
+      const normalized = normalize(TrangThai);
+      const isCancelRequest = CANCEL_ALIASES.includes(normalized);
+      const isClaimRequest = CLAIM_ALIASES.includes(normalized);
+
       // Khách hàng chỉ được: (1) tự huỷ đơn của mình, hoặc (2) tự báo "Chờ xác nhận" (vd bấm
       // "Đã chuyển khoản - Hoàn tất" trên mã QR) - đây chỉ là LỜI KHAI, không có quyền lực gì,
       // không trừ kho/không dọn giỏ hàng. Khách KHÔNG được tự đặt "Đã xác nhận" hay các bước
       // sau - đó là lúc admin xác nhận đã thật sự nhận được tiền/chuyển khoản (có finalizeOrder
       // lo phần trừ kho + chuyển giỏ hàng sang đơn thật). Nếu không chặn, khách có thể tự gọi
       // API này để "thanh toán giả" mà không cần trả tiền.
-      const allowedForUser = ["Hủy", "Chờ xác nhận"];
-      if (role !== "admin" && !allowedForUser.includes(TrangThai)) {
+      if (role !== "admin" && !isCancelRequest && !isClaimRequest) {
         return res.status(403).json({
           message:
             "Bạn chỉ có thể huỷ đơn hoặc báo đã chuyển khoản, việc xác nhận đơn hàng do quản trị viên thực hiện",
@@ -211,11 +223,24 @@ export const OrderController = {
         return res.json({ message: "Cập nhật trạng thái thành công" });
       }
 
+      // Ghi giá trị chuẩn thay vì chuỗi thô của client cho 2 trường hợp khách tự gửi, để DB
+      // luôn nhất quán 1 cách viết duy nhất. Dùng "Hủy" (không phải "Đã hủy" như khai báo
+      // trong order.model.ts) vì đó mới là chuỗi FE thực sự đang so khớp ở mọi nơi (badge
+      // trạng thái, lọc tab trong order-manage.tsx/order-detail.tsx) - model.ts chỉ là kiểu
+      // TypeScript tham khảo, không ràng buộc DB, và đang lệch so với FE thật.
+      const finalTrangThai = isCancelRequest
+        ? "Hủy"
+        : isClaimRequest
+        ? "Chờ xác nhận"
+        : TrangThai;
+
       const [result]: any = await db.query(
         role === "admin"
           ? "UPDATE donhang SET TrangThai = ? WHERE MaDonHang = ?"
           : "UPDATE donhang SET TrangThai = ? WHERE MaDonHang = ? AND user_id = ?",
-        role === "admin" ? [TrangThai, id] : [TrangThai, id, user_id]
+        role === "admin"
+          ? [finalTrangThai, id]
+          : [finalTrangThai, id, user_id]
       );
 
       if (result.affectedRows === 0)
