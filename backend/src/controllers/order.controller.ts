@@ -195,7 +195,7 @@ export const OrderController = {
       // sau - đó là lúc admin xác nhận đã thật sự nhận được tiền/chuyển khoản (có finalizeOrder
       // lo phần trừ kho + chuyển giỏ hàng sang đơn thật). Nếu không chặn, khách có thể tự gọi
       // API này để "thanh toán giả" mà không cần trả tiền.
-      const allowedForUser = ["Đã huỷ", "Chờ xác nhận"];
+      const allowedForUser = ["Hủy", "Chờ xác nhận"];
       if (role !== "admin" && !allowedForUser.includes(TrangThai)) {
         return res.status(403).json({
           message:
