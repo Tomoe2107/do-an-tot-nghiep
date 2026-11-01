@@ -29,7 +29,7 @@ export const updateUser = async (
     }
   } catch (error: any) {
     if (error.response?.status === 401) {
-      localStorage.removeItem("user");
+      localStorage.removeItem("userId");
       throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
     }
     throw new Error(error.response?.data?.message || error.message);

@@ -9,6 +9,7 @@ import {
 } from "@/api/order";
 import { FaTimes } from "react-icons/fa";
 import { showSuccess, showError } from "@/common/toast";
+import { getProfile } from "@/api/get-profile";
 
 // Import Dialog components (chỉ dùng cho xác nhận xóa)
 import {
@@ -72,11 +73,13 @@ export default function OrderDetail() {
     "Khác",
   ];
 
-  // KIỂM TRA QUYỀN ADMIN
+  // KIỂM TRA QUYỀN ADMIN - localStorage chỉ còn lưu "userId", role phải hỏi lại
+  // server (cookie tự xác thực), không tin role do client tự lưu.
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const role = user.role || user.Role || user.isAdmin || "";
-    setIsAdmin(role.toLowerCase() === "admin");
+    if (!localStorage.getItem("userId")) return;
+    getProfile()
+      .then((profile) => setIsAdmin(profile?.role === "admin"))
+      .catch(() => setIsAdmin(false));
   }, []);
 
   // LẤY TẤT CẢ ĐƠN HÀNG

@@ -8,6 +8,7 @@ import type { User } from "@/types/register-login-logout.type";
 import type { SanPham } from "@/types/product.type";
 import { getAllSanPham } from "@/api/product";
 import { logout as logoutApi } from "@/api/register-login-logout.api";
+import { getProfile } from "@/api/get-profile";
 import logo from "@/assets/images/img-head-foot/logo.png";
 import search from "@/assets/icons/search.svg";
 import avt from "@/assets/images/default.jpg";
@@ -28,11 +29,14 @@ export default function Header() {
 
   const navigate = useNavigate();
 
-  // Lấy user
+  // Lấy user - localStorage chỉ còn lưu "userId", tên/avatar/role phải hỏi lại
+  // server (cookie tự xác thực), không tin dữ liệu client tự lưu.
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user") || sessionStorage.getItem("user");
-    if (storedUser) setUser(JSON.parse(storedUser));
+    const userId = localStorage.getItem("userId") || sessionStorage.getItem("userId");
+    if (!userId) return;
+    getProfile()
+      .then((profile) => setUser(profile))
+      .catch(() => setUser(null));
   }, []);
 
   // Scroll ẩn header

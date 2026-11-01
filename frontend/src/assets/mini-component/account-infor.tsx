@@ -85,12 +85,12 @@ export default function Profile() {
   // === 1. LẤY USER ===
   useEffect(() => {
     console.log("🔄 [LOG] Bắt đầu load profile...");
-    // Token giờ nằm trong cookie httpOnly (JS không đọc được) - chỉ còn kiểm tra
-    // "user" trong localStorage để biết đã từng đăng nhập; getProfile() tự gửi kèm
-    // cookie, BE sẽ trả 401 nếu cookie hết hạn/không hợp lệ (xử lý ở catch bên dưới).
-    const rawUser = localStorage.getItem("user");
-    if (!rawUser) {
-      console.log("❌ [LOG] Không có user → redirect login");
+    // Token giờ nằm trong cookie httpOnly (JS không đọc được), localStorage chỉ còn
+    // lưu "userId" để biết đã từng đăng nhập; getProfile() tự gửi kèm cookie, BE sẽ
+    // trả 401 nếu cookie hết hạn/không hợp lệ (xử lý ở catch bên dưới).
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      console.log("❌ [LOG] Không có userId → redirect login");
       setLoading(false);
       setTimeout(() => navigate("/login"), 2000);
       return;
@@ -262,12 +262,9 @@ export default function Profile() {
       setUploading(true);
       const uploadedUrl = await uploadAvatar(file, user.id);
       const finalUrl = `${uploadedUrl}?v=${Date.now()}`;
-      setUser((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev, avatar: finalUrl };
-        localStorage.setItem("user", JSON.stringify(updated));
-        return updated;
-      });
+      // Chỉ cập nhật state hiển thị tại chỗ - không ghi lại vào localStorage (giờ chỉ
+      // lưu "userId", các nơi khác như header tự gọi getProfile() lấy avatar mới nhất).
+      setUser((prev) => (prev ? { ...prev, avatar: finalUrl } : prev));
       showSuccess("Cập nhật ảnh thành công!");
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message;

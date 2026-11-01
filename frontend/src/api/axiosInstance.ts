@@ -44,9 +44,8 @@ api.interceptors.response.use(
         },
       });
 
-      // Xóa token và user
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      // Xóa userId (cookie httpOnly do BE tự hết hạn, FE chỉ cần dọn localStorage)
+      localStorage.removeItem("userId");
 
       // Đợi 2 giây cho người dùng đọc thông báo
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -72,8 +71,7 @@ api.interceptors.response.use(
         },
       });
 
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      localStorage.removeItem("userId");
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
       window.location.href = "/login";

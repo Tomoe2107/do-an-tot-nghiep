@@ -13,32 +13,42 @@ import {
 import { useEffect, useState } from "react";
 import { showError } from "@/common/toast";
 import { logout as logoutApi } from "@/api/register-login-logout.api";
+import { getProfile } from "@/api/get-profile";
 
 // Chỉ render giao diện/gọi API quản trị khi đã đăng nhập VÀ role là admin.
 // Trước đây route /manage-page/* không kiểm tra gì cả, nên ai gõ thẳng URL
-// cũng thấy được khung trang admin (dù API bên trong đã bị BE chặn).
-// Token giờ nằm trong cookie httpOnly (JS không đọc được) nên không còn kiểm tra
-// localStorage.token nữa - chỉ cần "user" còn đó là biết đã từng đăng nhập; các
-// API quản trị thật sự vẫn luôn được BE xác thực lại qua cookie, không phải dựa
-// vào kiểm tra này.
-const isAdminLoggedIn = (): boolean => {
-  const rawUser = localStorage.getItem("user");
-  if (!rawUser) return false;
-  try {
-    const user = JSON.parse(rawUser);
-    return user?.role === "admin";
-  } catch {
-    return false;
-  }
-};
-
+// cũng thấy được khung trang admin (dù API bên trong đã bị BE chặn). Giờ localStorage
+// chỉ còn lưu "userId" (không lưu role nữa, tránh client tự sửa role trong localStorage
+// để qua mặt) - phải hỏi lại server (cookie tự xác thực) xem role thật sự có phải admin
+// không trước khi hiển thị.
 export default function AdminLayout() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const authorized = isAdminLoggedIn();
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!authorized) {
+    let cancelled = false;
+
+    if (!localStorage.getItem("userId")) {
+      setAuthorized(false);
+      return;
+    }
+
+    getProfile()
+      .then((profile) => {
+        if (!cancelled) setAuthorized(profile?.role === "admin");
+      })
+      .catch(() => {
+        if (!cancelled) setAuthorized(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authorized === false) {
       showError("Bạn cần đăng nhập tài khoản admin để truy cập trang này!");
       navigate("/login", { replace: true });
     }
@@ -50,11 +60,11 @@ export default function AdminLayout() {
     } catch {
       // Dù gọi API lỗi vẫn cứ đăng xuất phía FE
     }
-    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
     navigate("/login");
   };
 
-  if (!authorized) return null;
+  if (!authorized) return null; // null (đang kiểm tra) hoặc false (không có quyền)
 
   return (
     <div className="flex min-h-screen bg-gray-100 relative">

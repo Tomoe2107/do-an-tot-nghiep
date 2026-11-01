@@ -87,16 +87,17 @@ function Login() {
     e.preventDefault();
     try {
       const res = await loginApi({ username, password });
-      console.log("Kết quả đăng nhập:", res);
+      console.log("Đăng nhập thành công, user id:", res.user?.id);
 
       // Token giờ do BE set thẳng vào cookie httpOnly lúc đăng nhập (xem authMiddleware
       // + axiosInstance) - KHÔNG lưu token vào localStorage nữa (JS đọc được localStorage,
       // nếu có lỗ XSS nào đó sau này thì token sẽ bị đánh cắp dễ dàng; cookie httpOnly thì
-      // JS không đọc được). Chỉ lưu "user" (không nhạy cảm) để FE biết trạng thái đăng nhập.
-      if (res.user) {
-        const userData = JSON.stringify(res.user);
-
-        localStorage.setItem("user", userData);
+      // JS không đọc được). Cũng KHÔNG lưu cả object "user" (tên/email/role...) - chỉ lưu
+      // mỗi "userId" để FE biết đang đăng nhập; nơi nào cần tên/avatar/role thì tự gọi
+      // getProfile() lấy trực tiếp từ server (cookie tự xác thực), tránh lộ thừa thông tin
+      // qua DevTools và tránh tin vào role do client tự lưu.
+      if (res.user?.id) {
+        localStorage.setItem("userId", String(res.user.id));
         // Nếu người dùng chọn "Ghi nhớ", lưu thêm flag để tự đăng nhập sau
         if (rememberMe) {
           localStorage.setItem("rememberMe", "true");

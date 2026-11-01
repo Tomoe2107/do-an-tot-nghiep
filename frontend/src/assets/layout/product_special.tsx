@@ -48,9 +48,9 @@ export default function Product_special() {
   }, []);
 
   const handleBuyNow = (product: any) => {
-    const user = localStorage.getItem("user");
+    const userId = localStorage.getItem("userId");
 
-    if (!user) {
+    if (!userId) {
       showError("Vui lòng đăng nhập để mua hàng!");
       navigate("/login");
       return;
