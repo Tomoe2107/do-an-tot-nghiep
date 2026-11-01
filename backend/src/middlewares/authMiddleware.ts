@@ -22,20 +22,29 @@ export const authMiddleware = (
 ) => {
   try {
     const authHeader = req.headers["authorization"];
-    console.log("Auth header FE gửi lên:", authHeader);
 
-    if (!authHeader) {
-      return res.status(401).json({ message: "Thiếu Authorization header" });
+    // Ưu tiên header Authorization (tương thích ngược với FE cũ chưa chuyển sang cookie);
+    // nếu không có thì thử lấy từ httpOnly cookie "token" (FE mới, không tự lưu/gửi token
+    // qua JS nữa - trình duyệt tự đính kèm cookie, an toàn hơn trước XSS).
+    let token: string | undefined;
+
+    if (authHeader) {
+      const parts = authHeader.split(" ");
+      if (parts.length !== 2 || parts[0] !== "Bearer") {
+        return res.status(401).json({
+          message: "Authorization header phải có dạng: Bearer <token>",
+        });
+      }
+      token = parts[1];
+    } else if ((req as any).cookies?.token) {
+      token = (req as any).cookies.token;
     }
 
-    const parts = authHeader.split(" ");
-    if (parts.length !== 2 || parts[0] !== "Bearer") {
+    if (!token) {
       return res
         .status(401)
-        .json({ message: "Authorization header phải có dạng: Bearer <token>" });
+        .json({ message: "Thiếu token (Authorization header hoặc cookie)" });
     }
-
-    const token = parts[1];
 
     // ✅ Kiểm tra và giải mã token
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;

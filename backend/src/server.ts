@@ -1,6 +1,7 @@
 import { ProductReview } from "./model/products.review.model";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes";
 import productRoutes from "./routes/product.router";
@@ -33,6 +34,8 @@ const PORT = process.env.PORT || 4000;
 app.set("trust proxy", 1);
 
 app.use(express.json());
+// Để đọc được JWT từ httpOnly cookie (thay vì chỉ header Authorization) - xem authMiddleware.ts
+app.use(cookieParser());
 
 // Cấu hình CORS cho các frontend port khác nhau
 app.use(

@@ -7,6 +7,7 @@ import { FaBars, FaTimes } from "react-icons/fa";
 import type { User } from "@/types/register-login-logout.type";
 import type { SanPham } from "@/types/product.type";
 import { getAllSanPham } from "@/api/product";
+import { logout as logoutApi } from "@/api/register-login-logout.api";
 import logo from "@/assets/images/img-head-foot/logo.png";
 import search from "@/assets/icons/search.svg";
 import avt from "@/assets/images/default.jpg";
@@ -52,7 +53,12 @@ export default function Header() {
   }, [lastScrollY]);
 
   // Đăng xuất
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutApi(); // Xoá cookie httpOnly phía BE
+    } catch {
+      // Dù gọi API lỗi vẫn cứ đăng xuất phía FE
+    }
     localStorage.clear();
     sessionStorage.clear();
     setUser(null);

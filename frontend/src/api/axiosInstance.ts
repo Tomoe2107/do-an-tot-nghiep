@@ -7,17 +7,12 @@ import toast from "react-hot-toast"; // ⚡ Dùng react-hot-toast
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000",
   headers: { "Content-Type": "application/json" },
+  // Token giờ nằm trong cookie httpOnly do BE set lúc đăng nhập - trình duyệt tự
+  // đính kèm cookie này vào request, không cần (và không còn) tự đọc token từ
+  // localStorage để gắn header Authorization nữa (JS không đọc được cookie httpOnly,
+  // an toàn hơn trước XSS).
+  withCredentials: true,
 });
-
-// ✅ Thêm token vào header trước mỗi request
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 // ✅ Xử lý token hết hạn hoặc không hợp lệ
 api.interceptors.response.use(

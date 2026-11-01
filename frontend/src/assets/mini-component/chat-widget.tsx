@@ -151,9 +151,8 @@ export default function ChatWidget({
   // Khách bấm thẳng vào thẻ sản phẩm gợi ý trong chat -> mua ngay luôn, không
   // bắt vòng qua trang chi tiết sản phẩm nữa.
   const handleBuyNowFromChat = (p: ChatbotProduct) => {
-    const token = localStorage.getItem("token");
     const user = localStorage.getItem("user");
-    if (!token && !user) {
+    if (!user) {
       showError("Vui lòng đăng nhập để mua hàng!");
       setOpen(false);
       navigate("/login");

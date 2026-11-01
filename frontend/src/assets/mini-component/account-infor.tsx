@@ -85,10 +85,12 @@ export default function Profile() {
   // === 1. LẤY USER ===
   useEffect(() => {
     console.log("🔄 [LOG] Bắt đầu load profile...");
-    const token =
-      localStorage.getItem("token") || sessionStorage.getItem("token");
-    if (!token) {
-      console.log("❌ [LOG] Không có token → redirect login");
+    // Token giờ nằm trong cookie httpOnly (JS không đọc được) - chỉ còn kiểm tra
+    // "user" trong localStorage để biết đã từng đăng nhập; getProfile() tự gửi kèm
+    // cookie, BE sẽ trả 401 nếu cookie hết hạn/không hợp lệ (xử lý ở catch bên dưới).
+    const rawUser = localStorage.getItem("user");
+    if (!rawUser) {
+      console.log("❌ [LOG] Không có user → redirect login");
       setLoading(false);
       setTimeout(() => navigate("/login"), 2000);
       return;

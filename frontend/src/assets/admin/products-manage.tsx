@@ -127,18 +127,12 @@ const ManageProducts = () => {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setError("Token không hợp lệ! Vui lòng đăng nhập lại. ");
-          return;
-        }
+        // Token giờ nằm trong cookie httpOnly - "api" (axiosInstance) đã bật
+        // withCredentials nên tự gửi kèm cookie, không cần tự đọc/gắn token nữa.
         const formData = new FormData();
         formData.append("image", file);
         const res = await api.post("/imgproduct/imgproduct", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "multipart/form-data" },
         });
         const imageUrl = res.data.url;
         setFormData((prev) => ({ ...prev, hinhAnh: imageUrl }));

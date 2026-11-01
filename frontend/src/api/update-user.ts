@@ -10,22 +10,15 @@ export const updateUser = async (
   userId: string,
   data: Partial<User> // gửi chỉ 1 phần user
 ): Promise<UpdateUserResponse> => {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-
-  if (!token) {
-    throw new Error("Token không tồn tại. Vui lòng đăng nhập lại.");
-  }
-
+  // Token giờ nằm trong cookie httpOnly do BE set lúc đăng nhập - trình duyệt tự
+  // đính kèm (withCredentials: true), không cần tự đọc/gắn token nữa.
   try {
     const response = await axios.put<UpdateUserResponse>(
       `${UPDATE_ENDPOINT}/${userId}`,
       data,
       {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true,
       }
     );
 
@@ -36,9 +29,8 @@ export const updateUser = async (
     }
   } catch (error: any) {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      sessionStorage.removeItem("token");
-      throw new Error("Token không hợp lệ. Vui lòng đăng nhập lại.");
+      localStorage.removeItem("user");
+      throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
     }
     throw new Error(error.response?.data?.message || error.message);
   }

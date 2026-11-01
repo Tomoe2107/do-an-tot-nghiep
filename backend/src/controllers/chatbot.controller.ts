@@ -49,13 +49,21 @@ const mentionsDirectContact = (text: string): boolean => {
   return HUMAN_HANDOFF_HINTS.some((hint) => lower.includes(hint));
 };
 
-// Chat cho cả khách lẫn người đã đăng nhập nên không bắt buộc Bearer token
-// như authMiddleware - có thì giải mã lấy user_id để webhook tra đơn hàng dùng, không có thì bỏ qua.
+// Chat cho cả khách lẫn người đã đăng nhập nên không bắt buộc Bearer token/cookie - có thì
+// giải mã lấy user_id để webhook tra đơn hàng dùng, không có thì bỏ qua. Chấp nhận cả header
+// Authorization (FE cũ) lẫn cookie "token" (FE mới dùng httpOnly cookie), đồng bộ với authMiddleware.
 const tryGetUserId = (req: Request): number | undefined => {
   const authHeader = req.headers["authorization"];
-  if (!authHeader) return undefined;
-  const [scheme, token] = authHeader.split(" ");
-  if (scheme !== "Bearer" || !token) return undefined;
+  let token: string | undefined;
+
+  if (authHeader) {
+    const [scheme, headerToken] = authHeader.split(" ");
+    if (scheme === "Bearer" && headerToken) token = headerToken;
+  } else {
+    token = (req as any).cookies?.token;
+  }
+
+  if (!token) return undefined;
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id?: number };
     return decoded.id;

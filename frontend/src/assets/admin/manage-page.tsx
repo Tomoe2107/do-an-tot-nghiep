@@ -12,14 +12,18 @@ import {
 } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { showError } from "@/common/toast";
+import { logout as logoutApi } from "@/api/register-login-logout.api";
 
 // Chỉ render giao diện/gọi API quản trị khi đã đăng nhập VÀ role là admin.
 // Trước đây route /manage-page/* không kiểm tra gì cả, nên ai gõ thẳng URL
 // cũng thấy được khung trang admin (dù API bên trong đã bị BE chặn).
+// Token giờ nằm trong cookie httpOnly (JS không đọc được) nên không còn kiểm tra
+// localStorage.token nữa - chỉ cần "user" còn đó là biết đã từng đăng nhập; các
+// API quản trị thật sự vẫn luôn được BE xác thực lại qua cookie, không phải dựa
+// vào kiểm tra này.
 const isAdminLoggedIn = (): boolean => {
-  const token = localStorage.getItem("token");
   const rawUser = localStorage.getItem("user");
-  if (!token || !rawUser) return false;
+  if (!rawUser) return false;
   try {
     const user = JSON.parse(rawUser);
     return user?.role === "admin";
@@ -40,8 +44,12 @@ export default function AdminLayout() {
     }
   }, [authorized, navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
+  const handleLogout = async () => {
+    try {
+      await logoutApi(); // Xoá cookie httpOnly phía BE
+    } catch {
+      // Dù gọi API lỗi vẫn cứ đăng xuất phía FE
+    }
     localStorage.removeItem("user");
     navigate("/login");
   };

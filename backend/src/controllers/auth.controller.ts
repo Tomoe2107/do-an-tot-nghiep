@@ -17,6 +17,23 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 
+// FE và BE chạy ở domain khác nhau (vd vuthuyhien.id.vn vs backend-production-...up.railway.app)
+// nên cookie bắt buộc phải SameSite=None kèm Secure=true mới được trình duyệt gửi kèm cross-site
+// (đúng chuẩn, không phải tuỳ chọn). Local dev chạy http://localhost nên không set được cookie
+// Secure - tự nhận diện qua header x-forwarded-proto (Railway/Cloudflare đứng trước) để chọn
+// đúng cấu hình cho từng môi trường.
+const getAuthCookieOptions = (req: Request) => {
+  const isHttps =
+    req.secure || req.headers["x-forwarded-proto"] === "https";
+  return {
+    httpOnly: true,
+    secure: isHttps,
+    sameSite: (isHttps ? "none" : "lax") as "none" | "lax",
+    maxAge: 10 * 60 * 60 * 1000, // 10h, khớp với thời hạn JWT
+    path: "/",
+  };
+};
+
 // Hàm sinh ID ngẫu nhiên 5 số
 const generateId = async (): Promise<string> => {
   let id: string;
@@ -307,6 +324,11 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: "10h" }
     );
 
+    // Phát thêm token qua httpOnly cookie (JS không đọc được, an toàn hơn trước XSS so với
+    // lưu trong localStorage) - song song với trả token trong body để FE cũ (chưa chuyển
+    // sang dùng cookie) vẫn chạy bình thường trong lúc chuyển đổi.
+    res.cookie("token", token, getAuthCookieOptions(req));
+
     res.json({
       message: "Đăng nhập thành công",
       token,
@@ -327,8 +349,11 @@ export const login = async (req: Request, res: Response) => {
 };
 
 // Đăng xuất
-export const logout = async (_req: Request, res: Response) => {
+export const logout = async (req: Request, res: Response) => {
   try {
+    // path phải khớp với lúc set cookie ở login(), nếu không trình duyệt sẽ không xoá
+    const { httpOnly, secure, sameSite, path } = getAuthCookieOptions(req);
+    res.clearCookie("token", { httpOnly, secure, sameSite, path });
     res.json({ message: "Đăng xuất thành công" });
   } catch (error: any) {
     res
@@ -337,5 +362,3 @@ export const logout = async (_req: Request, res: Response) => {
   }
 };
 
-// ở đăng ký và đăng nhập thì chỉ cần req vì nó được dùng ở đoạn req.body
-// ở đăng xuất thì nó không hề được dùng nên phải thay bằng _req để bỏ qua tránh việc xảy ra lỗi 404 not found

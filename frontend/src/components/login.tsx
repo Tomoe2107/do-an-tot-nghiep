@@ -89,13 +89,15 @@ function Login() {
       const res = await loginApi({ username, password });
       console.log("Kết quả đăng nhập:", res);
 
-      // ✅ Nếu có token thì luôn lưu vào localStorage (để axios đọc được)
-      if (res.token) {
+      // Token giờ do BE set thẳng vào cookie httpOnly lúc đăng nhập (xem authMiddleware
+      // + axiosInstance) - KHÔNG lưu token vào localStorage nữa (JS đọc được localStorage,
+      // nếu có lỗ XSS nào đó sau này thì token sẽ bị đánh cắp dễ dàng; cookie httpOnly thì
+      // JS không đọc được). Chỉ lưu "user" (không nhạy cảm) để FE biết trạng thái đăng nhập.
+      if (res.user) {
         const userData = JSON.stringify(res.user);
 
-        // Nếu người dùng chọn "Ghi nhớ", lưu thêm flag để tự đăng nhập sau
-        localStorage.setItem("token", res.token);
         localStorage.setItem("user", userData);
+        // Nếu người dùng chọn "Ghi nhớ", lưu thêm flag để tự đăng nhập sau
         if (rememberMe) {
           localStorage.setItem("rememberMe", "true");
         } else {
