@@ -94,13 +94,16 @@ export default function Header() {
     }
   }, []);
 
-  // Debounce
-  let searchTimeout: NodeJS.Timeout;
+  // Debounce - dùng ref để giữ nguyên qua các lần render (biến "let" thường bị tạo
+  // mới mỗi lần render, khiến clearTimeout không huỷ được timeout của lần gõ trước)
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => performSearch(value), 300);
+    clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => performSearch(value), 300);
   };
 
   // Click ngoài → đóng

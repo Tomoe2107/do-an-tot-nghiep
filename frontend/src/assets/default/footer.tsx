@@ -65,7 +65,7 @@ const footerColumns = [
       </>,
       <div className="flex gap-4 text-2xl text-yellow-500 mt-2">
         <a
-          href="https://www.facebook.com/profile.php?id=61581439421009"
+          href="https://web.facebook.com/people/Shop-c%E1%BB%A7a-V%C5%A9-Thu%C3%BD-Hi%E1%BB%81n-%C4%90%E1%BA%B7c-s%E1%BA%A3n-Ba-mi%E1%BB%81n/61595698254439/"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-yellow-400"
